@@ -27,6 +27,8 @@ vm.runInContext(script, context);
 assert.equal(vm.runInContext('curriculum.units.length', context), 10);
 assert.equal(vm.runInContext('curriculum.units.filter(u=>u.term==="五上").length', context), 5);
 assert.equal(vm.runInContext('curriculum.units.filter(u=>u.term==="五下").length', context), 5);
+assert.equal(vm.runInContext('levels.length', context), 10);
+assert.equal(vm.runInContext('levels.every((l,i)=>l.title===curriculum.units[i].title&&l.meta.questionKey===curriculum.units[i].key)', context), true);
 assert.equal(vm.runInContext('levels.every(l=>l.meta.goal&&l.meta.inquiry&&l.meta.tasks.length===2)', context), true);
 assert.equal(vm.runInContext('migrateSaved({done:[1]}).version', context), 3);
 assert.equal(vm.runInContext('migrateSaved({done:[1]}).learningRecords.length', context), 0);
@@ -45,6 +47,9 @@ assert.match(html, /function showReasonStep\(/);
 assert.doesNotMatch(html, /function showReasonChoice\(/);
 assert.doesNotMatch(html, /選出最合理的答案。答錯會受到攻擊，選項會重新排列/);
 assert.match(html, /function showExitTicket\(/);
+assert.match(html, /區域學習單・把證據帶回生活/);
+assert.match(html, /<h2>\$\{esc\(meta\.prediction\)\}<\/h2><p class="exit-subtitle">\$\{esc\(meta\.exitPrompt\)\}<\/p>/);
+assert.doesNotMatch(html, /離場單/);
 assert.match(html, /function showTeacherMode\(/);
 assert.match(html, /data-teacher-unit/);
 

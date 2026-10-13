@@ -145,7 +145,7 @@ const preview = await workbook.render({ sheetName: "題庫總覽", range: "A1:F1
 await fs.writeFile(new URL("exports/歷史文物守護行動_題庫總覽.png", root), new Uint8Array(await preview.arrayBuffer()));
 const detailPreview = await workbook.render({ sheetName: "完整題庫", range: "Y4:AE8", scale: 1.25, format: "png" });
 await fs.writeFile(new URL("exports/歷史文物守護行動_題庫明細預覽.png", root), new Uint8Array(await detailPreview.arrayBuffer()));
-const check = await workbook.inspect({ kind: "sheet", sheetId: detail.id, range: "A1:AF12", include: "values,formulas", maxChars: 12000, tableMaxRows: 12, tableMaxCols: 32 });
+const check = await workbook.inspect({ kind: "sheet", sheetId: detail.name, range: "A1:AF12", include: "values,formulas", maxChars: 12000, tableMaxRows: 12, tableMaxCols: 32 });
 console.log(check.ndjson);
 const formulaErrors = await workbook.inspect({ kind: "match", searchTerm: "#REF!|#DIV/0!|#VALUE!|#NAME\\?|#N/A|#NUM!|#NULL!|#SPILL!|#CALC!", options: { useRegex: true, maxResults: 50 }, summary: "final formula error scan" });
 console.log(formulaErrors.ndjson);

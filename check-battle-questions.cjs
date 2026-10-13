@@ -31,10 +31,10 @@ function optionSimilarity(left, right) {
   return shared / (a.size + b.size - shared || 1);
 }
 
-assert.deepEqual(Array.from(vm.runInContext('difficulties.map(d=>d.enemy)', context)), [3, 4, 5, 5, 6, 7, 8, 9]);
+assert.deepEqual(Array.from(vm.runInContext('difficulties.map(d=>d.enemy)', context)), [3, 4, 4, 5, 5, 6, 7, 8, 8, 9]);
 assert.match(html, /\.bt-msgrow\.reason-active\{display:grid/, 'evidence feedback must use a horizontal row above the panel');
 assert.match(html, /row\.classList\.add\("reason-active"\)/, 'evidence step must activate the horizontal layout');
-for (let level = 1; level <= 8; level++) {
+for (let level = 1; level <= 10; level++) {
   const observedCorrectPositions = new Set();
   for (let entry = 1; entry <= 20; entry++) {
     const deck = JSON.parse(vm.runInContext(`state.level=${level};state.entry=${entry};JSON.stringify(makeDeck())`, context));
@@ -58,6 +58,7 @@ for (let level = 1; level <= 8; level++) {
 const bank = JSON.parse(vm.runInContext('JSON.stringify(questionBank)', context));
 const claimOwners = new Map();
 const advancedPhrases = /最周全|最穩妥|最成熟|應優先選用|利害關係人|縱軸尺度|時序空間/;
+const genericDistractors = /不用查資料|刪掉不同意見|選文字最少|只找支持自己的說法|沒有時間地點的數字|和問題無關的照片/;
 for (const [key, questions] of Object.entries(bank)) {
   questions.forEach(question => {
     if (!claimOwners.has(question.claim)) claimOwners.set(question.claim, new Set());
@@ -70,7 +71,12 @@ for (const [key, questions] of Object.entries(bank)) {
   questions.forEach(question => {
     assert.ok([...question.prompt].length <= 50, `${question.id} prompt should stay readable for grade five`);
     assert.doesNotMatch(question.prompt, advancedPhrases, `${question.id} prompt contains unnecessarily advanced wording`);
-    question.options.forEach(option => assert.doesNotMatch(option, advancedPhrases, `${question.id} option contains unnecessarily advanced wording`));
+    question.options.forEach(option => {
+      assert.doesNotMatch(option, advancedPhrases, `${question.id} option contains unnecessarily advanced wording`);
+      assert.doesNotMatch(option, genericDistractors, `${question.id} must not use a templated distractor`);
+    });
+    const crossUnitAnswers = question.options.filter((option, index) => index !== question.answerIndex && claimOwners.has(option) && [...claimOwners.get(option)].some(owner => owner !== key));
+    assert.ok(crossUnitAnswers.length >= 1, `${question.id} must include a distractor from another unit`);
     assert.equal(question.evidenceOptions.length, 3, `${question.id} must contain three evidence choices`);
     assert.equal(question.evidenceOptions.filter(option => option.correct).length, 1, `${question.id} must contain one correct evidence choice`);
     assert.equal(new Set(question.evidenceOptions.map(option => option.text)).size, 3, `${question.id} evidence choices must be distinct`);

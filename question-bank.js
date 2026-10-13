@@ -111,33 +111,39 @@ const grade5=text=>text
  .replaceAll("時序","時間順序").replaceAll("遷移","移動").replaceAll("生計","生活").replaceAll("疫病","傳染病")
  .replaceAll("淤積","堆積").replaceAll("供應鏈","來源").replaceAll("脈絡","背景").replaceAll("權衡","比較").replaceAll("推論","判斷");
 const conceptList=Object.entries(C).flatMap(([unitKey,concepts])=>concepts.map(concept=>({...concept,unitKey})));
-function makeOptions(base,variant){
+const optionSimilarity=(left,right)=>{const pairs=value=>new Set([...value].slice(0,-1).map((char,index)=>char+value[index+1])),a=pairs(left),b=pairs(right),shared=[...a].filter(pair=>b.has(pair)).length;return shared/(a.size+b.size-shared||1)};
+function crossUnitOptions(unitKey,seed,selected,count){
+ const others=conceptList.filter(concept=>concept.unitKey!==unitKey),picked=[];
+ for(let step=0;step<others.length&&picked.length<count;step++){
+  const source=others[(seed+step)%others.length],text=grade5(shortClaims[source.o]),choices=[...selected,...picked.map(item=>item.text),text],lengths=choices.map(choice=>[...choice].length);
+  if(Math.max(...lengths)>20||Math.max(...lengths)-Math.min(...lengths)>8||choices.slice(0,-1).some(choice=>optionSimilarity(choice,text)>.35))continue;
+  picked.push({text,source});
+ }
+ if(picked.length!==count)throw new Error(`找不到適合 ${unitKey} 的跨單元選項`);
+ return picked;
+}
+function makeOptions(unitKey,base,baseIndex,variant){
  const claim=grade5(shortClaims[base.o]);
- if(variant===0)return [claim,...base.w.map(grade5)];
- if(variant===1)return [
-  "和題目直接有關的資料",
-  "只找支持自己的說法",
-  "沒有時間地點的數字",
-  "和問題無關的照片"
- ];
- return [
-  claim,
-  "不用查資料，照原來的說法",
-  "刪掉不同意見後才下結論",
-  "選文字最少的說法當答案"
- ];
+ const seed=Object.keys(C).indexOf(unitKey)*17+baseIndex*9+variant*23;
+ if(variant===0){
+  const local=base.w.slice(0,2).map(text=>({text:grade5(text)}));
+  return [{text:claim},...local,...crossUnitOptions(unitKey,seed,[claim,...local.map(item=>item.text)],1)];
+ }
+ const correct=variant===1?"和題目直接有關的資料":claim;
+ return [{text:correct},...crossUnitOptions(unitKey,seed,[correct],3)];
 }
 function build(unitKey,base,baseIndex,variant){
  const id=`${unitKey}-Q${String(baseIndex*3+variant+1).padStart(2,"0")}`;
  const type=["情境判斷","證據判讀","迷思修正"][variant];
  const prompt=variant===0?`${grade5(base.s)}。哪個答案最合理？`:variant===1?`哪項資料最能支持「${grade5(shortClaims[base.o])}」？`:`有人說：「${grade5(base.w[0])}」哪個答案能改正這個說法？`;
- const claim=grade5(shortClaims[base.o]),options=makeOptions(base,variant),answerIndex=0,focus=base.t;
+ const claim=grade5(shortClaims[base.o]),optionDetails=makeOptions(unitKey,base,baseIndex,variant),options=optionDetails.map(option=>option.text),answerIndex=0,focus=base.t;
  const explanation=variant===0?base.e:variant===1?`這題檢查的是證據能否直接支持「${base.c}」，不是文字長短或票數。${base.e}`:`迷思「${base.w[0]}」的問題，是它沒有處理「${base.s}」提供的關鍵條件。${base.e}`;
  const optionFeedback=options.map((option,choice)=>choice===0
   ?correctStyles[(baseIndex+variant)%correctStyles.length](option,focus)
+  :optionDetails[choice].source?`「${option}」是「${optionDetails[choice].source.t}」的重點，但不能回答本題的「${focus}」。請回看：${base.h}`
   :wrongStyles[(baseIndex+variant+choice)%wrongStyles.length](option,options[0],base.h));
  const misconceptionByChoice=options.map((_,choice)=>choice===0?"判斷正確":tags[(baseIndex+variant+choice)%tags.length]);
- const otherConcepts=conceptList.filter(concept=>concept.unitKey!==unitKey),unitIndex=Object.keys(C).indexOf(unitKey),offset=(unitIndex*13+baseIndex*7+variant*11)%otherConcepts.length,first=otherConcepts[offset],second=otherConcepts[(offset+17)%otherConcepts.length];
+ const otherConcepts=conceptList.filter(concept=>concept.unitKey!==unitKey&&!options.includes(grade5(shortClaims[concept.o]))),unitIndex=Object.keys(C).indexOf(unitKey),offset=(unitIndex*13+baseIndex*7+variant*11)%otherConcepts.length,first=otherConcepts[offset],second=otherConcepts[(offset+17)%otherConcepts.length];
  const evidenceOptions=[
   {text:grade5(base.h),correct:true,feedback:`這是判斷「${base.t}」時要使用的依據。${base.e}`},
   {text:grade5(shortClaims[first.o]),correct:false,feedback:`這是「${first.t}」的重點；本題要判斷的是「${base.t}」，兩者不能互相代替。`},
