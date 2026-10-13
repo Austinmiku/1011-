@@ -5,11 +5,13 @@ const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '歷史文物守護行動完整版.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1].split('document.querySelector("#largeBtn").onclick=')[0];
-let pins = [];
+let pins = [], taskAnswers = [], taskBack = {}, taskStatus = {};
 const app = { focus() {} };
 Object.defineProperty(app, 'innerHTML', { set(markup) {
   this.markup = markup;
   pins = [...markup.matchAll(/<button class="explore-pin[^>]+data-spot="(\d)"/g)].map((match) => ({ dataset: { spot: match[1] } }));
+  taskAnswers = [...markup.matchAll(/data-task-answer="(\d)"/g)].map((match) => ({ dataset: { taskAnswer: match[1] } }));
+  taskBack = {}; taskStatus = {};
 } });
 const progress = { setAttribute() {} };
 const battle = {};
@@ -37,16 +39,28 @@ const canvas = {
   },
 };
 const document = {
-  querySelector(selector) { return { '#app': app, '#progress': progress, '#battle': battle, '.explore-canvas': canvas }[selector] || null; },
-  querySelectorAll(selector) { return selector === '[data-spot]' ? pins : []; },
+  querySelector(selector) { return { '#app': app, '#progress': progress, '#battle': battle, '#taskBack': taskBack, '#taskStatus': taskStatus, '.explore-canvas': canvas }[selector] || null; },
+  querySelectorAll(selector) { return selector === '[data-spot]' ? pins : selector === '[data-task-answer]' ? taskAnswers : []; },
 };
-const context = vm.createContext({ document, window: {}, location: { search: '' }, localStorage: { getItem() { return '{}'; } }, URLSearchParams, console, Math });
+const context = vm.createContext({ document, window: {}, location: { search: '' }, localStorage: { getItem() { return '{}'; }, setItem() {} }, URLSearchParams, console, Math });
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'question-bank.js'), 'utf8'), context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'curriculum-data.js'), 'utf8'), context);
 vm.runInContext(script, context);
+const curriculumTasks = JSON.parse(vm.runInContext('JSON.stringify([...curriculum.units,...curriculum.levels].flatMap(item=>item.tasks))', context));
+curriculumTasks.forEach((task, index) => {
+  assert.ok([...task.prompt].length <= 24, `exploration task ${index + 1} prompt should stay readable for grade five`);
+  task.options.forEach(option => assert.ok([...option].length <= 16, `exploration task ${index + 1} option should stay concise`));
+});
 for (let level = 1; level <= 8; level++) {
   const n = String(level).padStart(2, '0');
   for (const file of [`explore-scene-${n}.webp`, `explore-spot-${n}-a.webp`, `explore-spot-${n}-b.webp`])
     assert.ok(fs.existsSync(path.join(__dirname, 'assets', file)), file);
+  const correctPositions = new Set();
+  for (let entry = 1; entry <= 15; entry++) {
+    vm.runInContext(`state.level=${level};state.entry=${entry};showEvidenceTask(0)`, context);
+    correctPositions.add(taskAnswers.findIndex(answer => answer.dataset.taskAnswer === '0'));
+  }
+  assert.equal(correctPositions.size, 3, `level ${level} exploration answers should appear in all positions`);
   vm.runInContext(`state.level=${level};state.spotOrder=[1,0];startExplore()`, context);
   assert.match(app.markup, new RegExp(`explore-scene-${n}\\.webp`));
   assert.match(app.markup, new RegExp(`explore-spot-${n}-a\\.webp`));
@@ -57,6 +71,11 @@ for (let level = 1; level <= 8; level++) {
   assert.doesNotMatch(app.markup, /discovery-drawing|待調查/);
   assert.match(app.markup, /id="battle" disabled/);
   pins.find((pin) => pin.dataset.spot === '0').onclick();
+  assert.equal(vm.runInContext('state.clues.size', context), 0);
+  assert.match(app.markup, /探索驗證/);
+  const firstCorrectIndex = taskAnswers.findIndex(answer => answer.dataset.taskAnswer === '0');
+  assert.ok(firstCorrectIndex >= 0);
+  taskAnswers[firstCorrectIndex].onclick();
   assert.equal(vm.runInContext('state.clues.size', context), 1);
   assert.match(app.markup, /已記錄 1 \/ 2 條關鍵線索/);
   assert.ok(app.markup.includes(firstClue));
@@ -67,6 +86,10 @@ for (let level = 1; level <= 8; level++) {
   assert.match(app.markup, /just-found/);
   assert.match(app.markup, /id="battle" disabled/);
   pins.find((pin) => pin.dataset.spot === '1').onclick();
+  assert.equal(vm.runInContext('state.clues.size', context), 1);
+  const secondCorrectIndex = taskAnswers.findIndex(answer => answer.dataset.taskAnswer === '0');
+  assert.ok(secondCorrectIndex >= 0);
+  taskAnswers[secondCorrectIndex].onclick();
   assert.match(paths['.ink-route'].d, /^M 550 330 C .* 575 574$/);
   assert.equal(vm.runInContext('state.clues.size', context), 2);
   assert.match(app.markup, /已記錄 2 \/ 2 條關鍵線索/);

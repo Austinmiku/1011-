@@ -23,6 +23,7 @@ const document = {
 };
 const context = vm.createContext({ document, window: {}, location: { search: '' }, localStorage: { getItem() { return '{}'; }, setItem() {} }, URLSearchParams, console, Math });
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'question-bank.js'), 'utf8'), context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'curriculum-data.js'), 'utf8'), context);
 vm.runInContext(script, context);
 vm.runInContext('state.unlocked=2;prepare(1)', context);
 assert.match(app.markup, /從 3 件道具中選 1 件/);

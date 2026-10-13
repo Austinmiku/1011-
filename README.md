@@ -1,6 +1,6 @@
 # 歷史文物守護行動
 
-以國小五、六年級學生為主要玩家的網頁社會科冒險遊戲，內容涵蓋康軒版國小五年級上學期社會科的重要知識點。
+以國小五、六年級學生為主要玩家的網頁社會科探究冒險遊戲。八關故事模式可遊玩；教師課堂模式另可直接開啟五上、五下共十個單元。
 
 ## 開始遊玩
 
@@ -10,15 +10,15 @@
 
 遊戲不需要安裝套件或連線到伺服器。
 
-請保留 `question-bank.js` 與完整版 HTML 在同一資料夾；遊戲開啟時會先載入這份題庫。
+請保留 `question-bank.js`、`curriculum-data.js` 與完整版 HTML 在同一資料夾；遊戲開啟時會先載入題庫與課程對照資料。
 
 若要從 Excel 重新產生題庫，使用安裝了 `openpyxl` 的 Python 執行：
 
 ```powershell
-python tools/export-question-bank.py "../歷史文物守護行動_完整題庫.xlsm"
+python tools/export-question-bank.py "exports/歷史文物守護行動_完整題庫.xlsx"
 ```
 
-轉換工具會檢查八關各十題、正確選項及答案內容，再更新 `question-bank.js`。遊戲不會直接讀取 Excel 檔。
+轉換工具會檢查十個單元各 15 題、四個精簡且彼此區別的選項、逐選項回饋與迷思、證據及遷移情境，再更新 `question-bank.js`。遊戲不會直接讀取 Excel 檔。
 
 ## 部署到線上
 
@@ -39,23 +39,28 @@ firebase.cmd deploy --only hosting
 
 在 PowerShell 裡請用 `firebase.cmd`；直接打 `firebase` 可能會被系統的指令碼執行原則擋下。改用命令提示字元（cmd）則可以直接打 `firebase`。
 
-上傳的範圍由 `firebase.json` 決定，只包含遊戲執行需要的檔案：兩個 HTML、`question-bank.js`、`assets` 裡的 webp 圖片與字型。企劃文件、PNG 原圖、`tools`、`docs`、`openspec`、檢查腳本與美術提示詞檔都不會上傳。新增遊戲會用到的其他類型檔案時，記得確認它沒有被 `firebase.json` 的 `ignore` 排除。
+上傳的範圍由 `firebase.json` 決定，只包含遊戲執行需要的檔案：兩個 HTML、`question-bank.js`、`curriculum-data.js`、`assets` 裡的 webp 圖片與字型。企劃文件、PNG 原圖、`tools`、`docs`、`openspec`、檢查腳本與美術提示詞檔都不會上傳。新增遊戲會用到的其他類型檔案時，記得確認它沒有被 `firebase.json` 的 `ignore` 排除。
 
 部署的是資料夾裡目前的檔案，不是 git 上的版本，所以部署前後記得 commit，讓線上版和 repository 保持一致。
 
 ## 內容
 
 - 八個完整關卡與連續劇情
-- 每次進關隨機排列探索點、題目及答案
+- 每次進關隨機排列探索點、探索線索、題目及答案
 - 逐關提升的敵人血量與攻擊力
 - 五種可選擇並隨關卡強化的道具
 - 最終 Boss 可攜帶兩件道具
 - 文物圖鑑、知識卡及最終試玩回饋
+- 課前預測、探索驗證、判斷—證據與離場單
+- 五上、五下十個單元各 15 題；使用五年級容易理解的題幹與選項，同場不重複
+- 每題證據干擾項取自其他單元知識，並提供對應主題的差異化回饋
+- 教師可直接選單元、設定課堂時間、暫停講解及匯出本機學習摘要
 
 ## 檔案
 
 - `歷史文物守護行動完整版.html`：目前的完整遊戲
-- `question-bank.js`：由 Excel 匯出的八關題目、選項、答案、提示與解析
+- `question-bank.js`：十單元共 150 題，以及逐選項回饋、迷思與證據資料
+- `curriculum-data.js`：上下學期十單元課程定位、學習目標與探究任務
 - `tools/export-question-bank.py`：將 Excel 題庫重新轉成 JS 的工具
 - `歷史文物守護行動第一小關.html`：第一小關原型
 - `國小生版畢業專題遊戲構想.docx`：調整後的遊戲企劃文件

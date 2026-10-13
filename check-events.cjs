@@ -21,6 +21,7 @@ const context = vm.createContext({
   Math,
 });
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'question-bank.js'), 'utf8'), context);
+vm.runInContext(fs.readFileSync(path.join(__dirname, 'curriculum-data.js'), 'utf8'), context);
 vm.runInContext(script, context);
 
 assert.equal(vm.runInContext('randomEvents.length', context), 15);
