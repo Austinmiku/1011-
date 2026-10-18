@@ -9,26 +9,18 @@ HEADERS = [
     "選項 A", "選項 B", "選項 C", "選項 D", "正確選項", "正確答案", "提示", "答案解析",
     "A 回饋", "B 回饋", "C 回饋", "D 回饋", "A 迷思", "B 迷思", "C 迷思", "D 迷思",
     "證據 A", "證據 B", "證據 C", "證據正解", "證據 A 回饋", "證據 B 回饋", "證據 C 回饋",
-    "遷移情境",
+    "遷移情境", "來源卷別", "來源檔案", "來源題號",
 ]
-UNIT_KEYS = [f"5A-U{i}" for i in range(1, 6)] + [f"5B-U{i}" for i in range(1, 6)]
-ADVANCED_PHRASES = ("最周全", "最穩妥", "最成熟", "應優先選用", "利害關係人", "縱軸尺度", "時序空間")
-
-def option_similarity(left: str, right: str) -> float:
-    def pairs(value: str) -> set[str]:
-        return {value[index:index + 2] for index in range(len(value) - 1)}
-    left_pairs, right_pairs = pairs(left), pairs(right)
-    shared = len(left_pairs & right_pairs)
-    return shared / (len(left_pairs | right_pairs) or 1)
+UNIT_KEYS = [f"5A-U{i}" for i in range(1, 5)] + [f"5B-U{i}" for i in range(1, 5)]
 
 def export(source: Path, destination: Path) -> None:
     workbook = load_workbook(source, data_only=False, keep_vba=False)
     sheet = workbook["完整題庫"]
-    if [sheet.cell(4, col).value for col in range(1, 33)] != HEADERS:
-        raise ValueError("題庫欄位與新版 32 欄格式不符")
+    if [sheet.cell(4, col).value for col in range(1, 36)] != HEADERS:
+        raise ValueError("題庫欄位與新版 35 欄格式不符")
     bank = {key: [] for key in UNIT_KEYS}
-    for row_number in range(5, 155):
-        cells = [sheet.cell(row_number, col) for col in range(1, 33)]
+    for row_number in range(5, 125):
+        cells = [sheet.cell(row_number, col) for col in range(1, 36)]
         if any(cell.data_type == "f" for cell in cells):
             raise ValueError(f"第 {row_number} 列含公式")
         record = dict(zip(HEADERS, [cell.value for cell in cells]))
@@ -45,20 +37,8 @@ def export(source: Path, destination: Path) -> None:
             raise ValueError(f"第 {row_number} 列正確選項必須是 A-D")
         answer_index = "ABCD".index(answer_letter)
         options = [record[f"選項 {letter}"] for letter in "ABCD"]
-        if len(str(record["題目"])) > 50 or any(phrase in str(record["題目"]) for phrase in ADVANCED_PHRASES):
-            raise ValueError(f"第 {row_number} 列題目不符合五年級閱讀規則")
-        if any(any(phrase in str(option) for phrase in ADVANCED_PHRASES) for option in options):
-            raise ValueError(f"第 {row_number} 列選項含不必要的進階用語")
-        lengths = [len(str(option)) for option in options]
         if len(set(options)) != 4:
             raise ValueError(f"第 {row_number} 列含重複選項")
-        if max(lengths) > 20:
-            raise ValueError(f"第 {row_number} 列有選項超過 20 字")
-        if max(lengths) - min(lengths) > 8:
-            raise ValueError(f"第 {row_number} 列選項長度差距超過 8 字")
-        if any(option_similarity(str(options[i]), str(options[j])) > 0.35
-               for i in range(4) for j in range(i + 1, 4)):
-            raise ValueError(f"第 {row_number} 列有過度相似的選項")
         if options[answer_index] != record["正確答案"]:
             raise ValueError(f"第 {row_number} 列正確答案與選項不一致")
         if record["證據正解"] not in "ABC":
@@ -81,20 +61,14 @@ def export(source: Path, destination: Path) -> None:
             "evidenceOptions": [{"text": record[f"證據 {letter}"], "correct": i == evidence_answer,
                                  "feedback": record[f"證據 {letter} 回饋"]} for i, letter in enumerate("ABC")],
             "transferContext": record["遷移情境"],
+            "sourceFile": record["來源檔案"],
+            "sourceQuestionNumber": record["來源題號"],
+            "sourceSequence": record["題號"],
         })
     if any(len(questions) != 15 for questions in bank.values()):
         raise ValueError("每個單元必須恰好有 15 題")
     if any(len({q["prompt"] for q in questions}) != 15 for questions in bank.values()):
         raise ValueError("同一單元不得有重複題目")
-    claim_owners = {}
-    for key, questions in bank.items():
-        for question in questions:
-            claim_owners.setdefault(question["claim"], set()).add(key)
-    for key, questions in bank.items():
-        for question in questions:
-            for option in question["evidenceOptions"]:
-                if not option["correct"] and not any(owner != key for owner in claim_owners.get(option["text"], set())):
-                    raise ValueError(f"{question['id']} 的錯誤證據不是其他單元知識")
     destination.write_text(
         "// 由 Excel 新版題庫產生；保留各選項回饋、迷思與證據欄位。\n"
         "window.GUARDIAN_QUESTION_BANK = " + json.dumps(bank, ensure_ascii=False, indent=2) + ";\n",

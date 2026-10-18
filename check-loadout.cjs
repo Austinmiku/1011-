@@ -34,7 +34,7 @@ assert.equal(go.disabled, false);
 cards[0].onclick();
 assert.equal(cards[0]['aria-pressed'], 'true');
 assert.equal(cards[1]['aria-pressed'], 'false');
-vm.runInContext('state.unlocked=10;prepare(10)', context);
+vm.runInContext('state.unlocked=8;prepare(8)', context);
 assert.match(app.markup, /最多選 2 件/);
 cards[0].onclick(); cards[1].onclick();
 assert.equal(count.textContent, '已選 2 / 2');

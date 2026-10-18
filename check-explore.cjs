@@ -51,7 +51,7 @@ curriculumTasks.forEach((task, index) => {
   assert.ok([...task.prompt].length <= 24, `exploration task ${index + 1} prompt should stay readable for grade five`);
   task.options.forEach(option => assert.ok([...option].length <= 16, `exploration task ${index + 1} option should stay concise`));
 });
-for (let level = 1; level <= 10; level++) {
+for (let level = 1; level <= 8; level++) {
   const n = vm.runInContext(`artNumber(${level})`, context);
   for (const file of [`explore-scene-${n}.webp`, `explore-spot-${n}-a.webp`, `explore-spot-${n}-b.webp`])
     assert.ok(fs.existsSync(path.join(__dirname, 'assets', file)), file);
@@ -95,4 +95,4 @@ for (let level = 1; level <= 10; level++) {
   assert.match(app.markup, /已記錄 2 \/ 2 條關鍵線索/);
   assert.doesNotMatch(app.markup, /id="battle" disabled/);
 }
-console.log('Ten exploration levels and two clue interactions per level passed');
+console.log('Eight exploration levels and two clue interactions per level passed');
