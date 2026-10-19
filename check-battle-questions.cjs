@@ -31,7 +31,10 @@ function optionSimilarity(left, right) {
   return shared / (a.size + b.size - shared || 1);
 }
 
-assert.deepEqual(Array.from(vm.runInContext('difficulties.map(d=>d.enemy)', context)), [3, 4, 5, 6, 6, 7, 8, 9]);
+assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(difficulties.map(d=>[d.enemy,d.attack,d.hearts]))', context)), Array(8).fill(null).map(() => [5, 1, 5]));
+assert.equal(vm.runInContext('questionsForLevel(8)', context), 10);
+assert.equal(vm.runInContext('itemEffect("stamp",8)', context), '下一次答對時回復 1 顆守護心。');
+assert.doesNotMatch(html, /enemyDamage:|bonusDamage:/, 'events must not shorten the five-correct-answer threshold');
 assert.match(html, /\.bt-msgrow\.reason-active\{display:grid/, 'evidence feedback must use a horizontal row above the panel');
 assert.match(html, /row\.classList\.add\("reason-active"\)/, 'evidence step must activate the horizontal layout');
 for (let level = 1; level <= 8; level++) {
@@ -39,7 +42,7 @@ for (let level = 1; level <= 8; level++) {
   for (let entry = 1; entry <= 20; entry++) {
     const deck = JSON.parse(vm.runInContext(`state.level=${level};state.entry=${entry};JSON.stringify(makeDeck())`, context));
     const expected = vm.runInContext(`questionsForLevel(${level})`, context);
-    assert.equal(deck.length, expected, `level ${level} question count must match enemy HP`);
+    assert.equal(deck.length, expected, `level ${level} must prepare ten unique questions`);
     assert.equal(new Set(deck.map(question => question.text)).size, expected, `level ${level} battle contains duplicate questions`);
     deck.forEach(question => {
       observedCorrectPositions.add(question.correct);
@@ -64,4 +67,4 @@ for (const [key, questions] of Object.entries(bank)) {
   });
 }
 
-console.log('8×15 source-paper bank, HP-scaled draws, uniqueness and shuffled answer positions passed');
+console.log('8×15 source-paper bank, uniform 5-hit scale, ten-question draws and shuffled answers passed');

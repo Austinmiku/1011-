@@ -26,6 +26,10 @@ assert.equal(vm.runInContext('state.hp', context), 3);
 assert.equal(JSON.parse(stored).hp, 3);
 assert.deepEqual(Array.from(vm.runInContext('[kitHeal(1),kitHeal(4),kitHeal(7)]', context)), [1, 2, 3]);
 assert.equal(vm.runInContext('itemEffect("kit",8)', context), '回復 3 顆守護心。');
+vm.runInContext('state.teacherMode=true;state.hp=1;state.pendingEvent=null;startBattle()', context);
+assert.equal(vm.runInContext('state.hp', context), 5);
+assert.equal(vm.runInContext('state.hpMax', context), 5);
+vm.runInContext('state.teacherMode=false', context);
 console.log('Persistent guardian hearts passed');
 
 vm.runInContext('let mapVisits=0,exits=0;showMap=()=>mapVisits++;showExitTicket=()=>exits++;state.enemy=1;state.hp=0;nextTurn()', context);
