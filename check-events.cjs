@@ -51,6 +51,10 @@ assert.equal(seenEvents.size, 15, 'all 15 events should be reachable');
 for (const [category, expected] of Object.entries({ fortune: 0.3, knowledge: 0.25, strategy: 0.25, crisis: 0.2 }))
   assert.ok(Math.abs(counts[category] / total - expected) < 0.04, `${category} distribution drifted too far`);
 
+vm.runInContext('state.level=1;state.entry=1;showEventQuiz(randomEvents.find(e=>e.id==="truth"),false)', context);
+assert.match(app.innerHTML, /data-event-answer=/, 'knowledge event should render choices from the new question bank');
+assert.ok(app.innerHTML.includes(vm.runInContext('levels[0].qs[5].prompt', context)), 'knowledge event should render the source-paper prompt');
+
 vm.runInContext('renderBattle=()=>{};makeDeck=()=>[];state.unlocked=5;state.level=4;state.hp=3;state.selectedItems=["compass"];state.pendingEvent={level:4,effect:{heal:1,hpPenalty:1,enemyDamage:2,shield:1,bonusDamage:1,revive:1,damageReduction:1,removeWrong:2,openingHint:true,extraItem:"lens"}};startBattle()', context);
 assert.equal(vm.runInContext('state.hpMax', context), 6);
 assert.equal(vm.runInContext('state.hp', context), 3);

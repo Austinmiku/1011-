@@ -42,7 +42,7 @@ const document = {
   querySelector(selector) { return { '#app': app, '#progress': progress, '#battle': battle, '#taskBack': taskBack, '#taskStatus': taskStatus, '.explore-canvas': canvas }[selector] || null; },
   querySelectorAll(selector) { return selector === '[data-spot]' ? pins : selector === '[data-task-answer]' ? taskAnswers : []; },
 };
-const context = vm.createContext({ document, window: {}, location: { search: '' }, localStorage: { getItem() { return '{}'; }, setItem() {} }, URLSearchParams, console, Math });
+const context = vm.createContext({ document, window: {}, location: { search: '?seed=115' }, localStorage: { getItem() { return '{}'; }, setItem() {} }, URLSearchParams, console, Math });
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'question-bank.js'), 'utf8'), context);
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'curriculum-data.js'), 'utf8'), context);
 vm.runInContext(script, context);
