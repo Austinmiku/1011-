@@ -5,13 +5,13 @@ const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '歷史文物守護行動完整版.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1].split('document.querySelector("#largeBtn").onclick=')[0];
-let pins = [], taskAnswers = [], taskBack = {}, taskStatus = {};
+let pins = [], taskAnswers = [], taskBack = {}, taskStatus = {}, guideBack = {}, guideNext = {};
 const app = { focus() {} };
 Object.defineProperty(app, 'innerHTML', { set(markup) {
   this.markup = markup;
   pins = [...markup.matchAll(/<button class="explore-pin[^>]+data-spot="(\d)"/g)].map((match) => ({ dataset: { spot: match[1] } }));
   taskAnswers = [...markup.matchAll(/data-task-answer="(\d)"/g)].map((match) => ({ dataset: { taskAnswer: match[1] } }));
-  taskBack = {}; taskStatus = {};
+  taskBack = {}; taskStatus = {}; guideBack = {}; guideNext = {};
 } });
 const progress = { setAttribute() {} };
 const battle = {};
@@ -39,7 +39,7 @@ const canvas = {
   },
 };
 const document = {
-  querySelector(selector) { return { '#app': app, '#progress': progress, '#battle': battle, '#taskBack': taskBack, '#taskStatus': taskStatus, '.explore-canvas': canvas }[selector] || null; },
+  querySelector(selector) { return { '#app': app, '#progress': progress, '#battle': battle, '#taskBack': taskBack, '#taskStatus': taskStatus, '#guideBack': guideBack, '#guideNext': guideNext, '.explore-canvas': canvas }[selector] || null; },
   querySelectorAll(selector) { return selector === '[data-spot]' ? pins : selector === '[data-task-answer]' ? taskAnswers : []; },
 };
 const context = vm.createContext({ document, window: {}, location: { search: '?seed=115' }, localStorage: { getItem() { return '{}'; }, setItem() {} }, URLSearchParams, console, Math });
@@ -47,6 +47,20 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, 'question-bank.js'), 'utf8'
 vm.runInContext(fs.readFileSync(path.join(__dirname, 'curriculum-data.js'), 'utf8'), context);
 vm.runInContext(script, context);
 const curriculumTasks = JSON.parse(vm.runInContext('JSON.stringify([...curriculum.units,...curriculum.levels].flatMap(item=>item.tasks))', context));
+const levelFocus = JSON.parse(vm.runInContext('JSON.stringify(levels.map(level=>level.focus))', context));
+const levelGuides = JSON.parse(vm.runInContext('JSON.stringify(levels.map(level=>level.guide))', context));
+const levelClues = JSON.parse(vm.runInContext('JSON.stringify(levels.map(level=>level.spots.map(spot=>spot.c)))', context));
+assert.equal(levelFocus.length, 8);
+levelFocus.forEach((items, index) => {
+  assert.equal(items.length, 3, `level ${index + 1} should have three unit focus cards`);
+  items.forEach(item => assert.ok(item.k && item.v, `level ${index + 1} focus cards need a title and explanation`));
+});
+assert.deepEqual(levelGuides.map(pages => pages.length), [3, 3, 3, 2, 3, 3, 2, 3], 'guide length should follow each unit content');
+levelGuides.forEach((pages, levelIndex) => pages.forEach((page, pageIndex) => {
+  assert.ok(page.title && page.lead && page.tip, `level ${levelIndex + 1} guide page ${pageIndex + 1} needs complete explanations`);
+  assert.equal(page.sections.length, 2, `level ${levelIndex + 1} guide page ${pageIndex + 1} needs two detailed sections`);
+}));
+assert.equal(new Set(levelClues.flat()).size, 16, 'all key clues should use level-specific content');
 curriculumTasks.forEach((task, index) => {
   assert.ok([...task.prompt].length <= 24, `exploration task ${index + 1} prompt should stay readable for grade five`);
   task.options.forEach(option => assert.ok([...option].length <= 16, `exploration task ${index + 1} option should stay concise`));
@@ -61,7 +75,19 @@ for (let level = 1; level <= 8; level++) {
     correctPositions.add(taskAnswers.findIndex(answer => answer.dataset.taskAnswer === '0'));
   }
   assert.equal(correctPositions.size, 3, `level ${level} exploration answers should appear in all positions`);
-  vm.runInContext(`state.level=${level};state.spotOrder=[1,0];startExplore()`, context);
+  vm.runInContext(`state.level=${level};state.spotOrder=[1,0]`, context);
+  for (let page = 0; page < levelGuides[level - 1].length; page++) {
+    vm.runInContext(`showUnitGuide(${page})`, context);
+    assert.match(app.markup, /關卡導讀・單元重點整理/);
+    assert.match(app.markup, new RegExp(`第 ${page + 1} 頁，共 ${levelGuides[level - 1].length} 頁`));
+    assert.equal((app.markup.match(/class="guide-card"/g) || []).length, 2);
+    assert.doesNotMatch(app.markup, /class="explore-pin|線索筆記/);
+  }
+  assert.equal(typeof guideNext.onclick, 'function');
+  guideNext.onclick();
+  assert.match(app.markup, /① 調查場景中的地點/);
+  assert.match(app.markup, /② 線索筆記/);
+  assert.doesNotMatch(app.markup, /關卡導讀・單元重點整理|class="guide-card"/);
   assert.match(app.markup, new RegExp(`explore-scene-${n}\\.webp`));
   assert.match(app.markup, new RegExp(`explore-spot-${n}-a\\.webp`));
   assert.match(app.markup, new RegExp(`explore-spot-${n}-b\\.webp`));
