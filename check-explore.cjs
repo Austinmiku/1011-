@@ -79,6 +79,8 @@ for (let level = 1; level <= 8; level++) {
   for (let page = 0; page < levelGuides[level - 1].length; page++) {
     vm.runInContext(`showUnitGuide(${page})`, context);
     assert.match(app.markup, /關卡導讀・單元重點整理/);
+    assert.match(app.markup, /本單元重點/);
+    assert.doesNotMatch(app.markup, /本頁重點/);
     assert.match(app.markup, new RegExp(`第 ${page + 1} 頁，共 ${levelGuides[level - 1].length} 頁`));
     assert.equal((app.markup.match(/class="guide-card"/g) || []).length, 2);
     assert.doesNotMatch(app.markup, /class="explore-pin|線索筆記/);
