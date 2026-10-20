@@ -29,6 +29,9 @@ assert.equal(vm.runInContext('curriculum.units.filter(u=>u.term==="五上").leng
 assert.equal(vm.runInContext('curriculum.units.filter(u=>u.term==="五下").length', context), 4);
 assert.equal(vm.runInContext('levels.length', context), 8);
 assert.equal(vm.runInContext('levels.every((l,i)=>l.title===curriculum.units[i].title&&l.meta.questionKey===curriculum.units[i].key)', context), true);
+assert.equal(vm.runInContext('curriculum.units.every((u,i)=>u.themeLevel===i+1&&classroomLevelFor(u.key)===i+1)', context), true);
+assert.equal(vm.runInContext('levels.every(l=>l.guide===unitGuidesByKey[l.meta.questionKey])', context), true);
+assert.equal(vm.runInContext('levels.every((l,i)=>l.meta.prediction===curriculum.units[i].prediction)', context), true);
 assert.equal(vm.runInContext('levels.every(l=>l.meta.goal&&l.meta.inquiry&&l.meta.tasks.length===2)', context), true);
 assert.equal(vm.runInContext('migrateSaved({done:[1]}).version', context), 3);
 assert.equal(vm.runInContext('migrateSaved({done:[1]}).learningRecords.length', context), 0);

@@ -62,6 +62,7 @@ for (const [key, questions] of Object.entries(bank)) {
     assert.equal(question.evidenceOptions.length, 3, `${question.id} must contain three evidence choices`);
     assert.equal(question.evidenceOptions.filter(option => option.correct).length, 1, `${question.id} must contain one correct evidence choice`);
     assert.equal(new Set(question.evidenceOptions.map(option => option.text)).size, 3, `${question.id} evidence choices must be distinct`);
+    assert.ok(question.evidenceOptions.every(option => [...option.text].length <= 30), `${question.id} evidence choices must stay concise`);
     assert.ok(question.evidenceOptions.every(option => !question.options.includes(option.text)), `${question.id} evidence choices must differ from answer choices`);
     assert.ok(question.evidenceOptions.every(option => !/較多人同意|選項文字較長/.test(option.text)), `${question.id} must not use generic evidence distractors`);
   });
