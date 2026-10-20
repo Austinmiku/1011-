@@ -745,8 +745,9 @@ async function playUnlock(n){const map=document.querySelector(".adventure-map"),
  b.scrollIntoView?.({block:"nearest",inline:"center",behavior:motionOK()?"smooth":"auto"});
  await wait(800);spark.remove();if(!map.isConnected)return;
  b.disabled=false;b.querySelector(".marker").textContent=levels[n].icon;mark(b,"current","下一站");pulse(b,"next");sfxPlay("item");toast(`第 ${n+1} 關「${levels[n].title}」開放了！`)}
-const kitHeal=n=>n>=7?3:n>=4?2:1;
-function itemEffect(id,n=state.level){if(id==="compass")return `排除 ${n>=5?2:1} 個錯誤選項。`;if(id==="lens")return n>=5?"顯示提示並排除 1 個錯誤選項。":"顯示本題提示。";if(id==="kit")return `回復 ${kitHeal(n)} 顆守護心。`;if(id==="sand")return `抵擋 ${n>=7?2:1} 次敵人攻擊。`;return "下一次答對時回復 1 顆守護心。"}
+const ITEM_EFFECTS=Object.freeze({compass:{removeWrong:1},lens:{hint:true},kit:{heal:1},sand:{shield:1},stamp:{healOnCorrect:1}});
+const kitHeal=()=>ITEM_EFFECTS.kit.heal;
+function itemEffect(id){if(id==="compass")return "排除 1 個錯誤選項。";if(id==="lens")return "顯示本題提示。";if(id==="kit")return "回復 1 顆守護心。";if(id==="sand")return "抵擋 1 次敵人攻擊。";return "下一次答對時回復 1 顆守護心。"}
 function prepare(n){
  state.level=n;if(state.hp<=0){state.hpMax=maxHeartsFor(state.unlocked);state.hp=state.hpMax;save()}state.entry++;state.spotOrder=shuffled([0,1],n*31+state.entry);
  const available=items.filter(x=>x.unlock<=state.unlocked),limit=n===levels.length?2:1;
@@ -755,7 +756,7 @@ function prepare(n){
  render(`<section class="screen departure"><div class="eyebrow">${unit?`${esc(unit.term)}・第 ${unit.unit} 單元`:`第 ${n} 關・${esc(l.unit)}`}</div><h2>${l.icon} ${esc(unit?.title||l.title)}</h2>${learningStrip(meta)}
  <div class="departure-brief"><div><span class="speaker">檔檔・文物嚮導</span><p><b>${esc(guardianName())}，</b>${esc(l.intro[0])}</p><p>${esc(l.intro[1])}</p></div><div class="departure-facts" aria-label="本關難度資訊"><span>難度 ${d.name}</span><span>敵人 ${d.enemy} HP・攻擊 ${d.attack}</span><span>守護心 ${state.hp} / ${maxHeartsFor(state.unlocked)}</span></div></div>
  <section class="loadout-panel" aria-labelledby="loadoutTitle"><div class="loadout-head"><div><div class="eyebrow">出發前，先完成這一步</div><h3 id="loadoutTitle">從 ${available.length} 件道具中${limit===2?"最多選 2 件":"選 1 件"}</h3><p>${limit===2?"點選一件或兩件道具，再開始調查。":"點選下方其中一件道具，再開始調查。"}</p></div><span class="loadout-status" id="itemCount" role="status" aria-live="polite">尚未選擇</span></div>
- <div class="item-grid" style="--item-columns:${Math.min(available.length,5)}" role="group" aria-label="可選道具">${available.map(x=>`<button class="item" type="button" data-item="${x.id}" aria-pressed="false">${itemArt(x,"item-art")}<b>${esc(x.name)}</b><small>${esc(itemEffect(x.id,n))}</small><span class="item-state">點選選擇</span></button>`).join("")}</div>
+ <div class="item-grid" style="--item-columns:${Math.min(available.length,5)}" role="group" aria-label="可選道具">${available.map(x=>`<button class="item" type="button" data-item="${x.id}" aria-pressed="false">${itemArt(x,"item-art")}<b>${esc(x.name)}</b><small>${esc(itemEffect(x.id))}</small><span class="item-state">點選選擇</span></button>`).join("")}</div>
  <div class="loadout-foot"><button class="secondary" id="back">返回地圖</button><button class="primary" id="go" disabled>請先選擇道具</button></div></section></section>`);
  const go=document.querySelector("#go");
  document.querySelectorAll(".item").forEach(b=>b.onclick=()=>{
@@ -1049,10 +1050,10 @@ function renderBattle(message=""){const l=levels[state.level-1],q=state.deck[sta
 const ANSWER_KEYS=["A","W","S","D"];
 function removeWrong(buttons,q,count){buttons.filter(b=>+b.dataset.a!==q.correct&&!b.disabled).slice(0,count).forEach(b=>{b.disabled=true;b.classList.add("eliminated");b.querySelector(".answer-state").textContent="已排除"})}
 function itemFx(id,amount){const ally=$b("#ally"),it=items.find(x=>x.id===id);if(!ally||!it)return;fxItem(ally,it.image);const logs={compass:"航海羅盤轉動，指出錯誤的方向！",lens:"線索放大鏡照出關鍵提示！",kit:"修復工具箱修好了守護心！",sand:"時序沙漏張開了防護罩！",stamp:"證據印章待命，答對後會修復守護心！"};battleLog(logs[id]);if(id==="kit"){sfxPlay("heal");fxBurst(ally,"heal");if(amount)fxPop(ally,`+${amount}`,"heal")}else if(id==="sand"){sfxPlay("block");fxBurst(ally,"shield")}else{sfxPlay("item");fxBurst(ally,"ring")}updateParty()}
-function useItem(id){if(state.usedItems.has(id)||state.busy)return;const q=state.deck[state.qi],buttons=[...document.querySelectorAll(".answer")],late=state.level>=5;state.usedItems.add(id);if(id==="compass"){const count=late?2:1;removeWrong(buttons,q,count);setStatus(`羅盤排除了 ${count} 個錯誤方向。`)}
- else if(id==="lens"){if(late)removeWrong(buttons,q,1);setStatus(`提示：${q.hint}${late?" 並已排除一個錯誤選項。":""}`)}
- else if(id==="kit"){if(state.hp===state.hpMax){state.usedItems.delete(id);setStatus("守護心目前是滿的，工具箱留到受傷後再用。");return}const before=state.hp,heal=kitHeal(state.level);state.hp=Math.min(state.hpMax,state.hp+heal);save();renderBattle(`工具箱回復了 ${state.hp-before} 顆守護心，目前 ${state.hp} / ${state.hpMax}。`);itemFx(id,state.hp-before);return}
- else if(id==="sand"){state.shield=state.level>=7?2:1;setStatus(`沙漏已啟動：可以抵擋 ${state.shield} 次敵人攻擊。`)}
+function useItem(id){if(state.usedItems.has(id)||state.busy)return;const q=state.deck[state.qi],buttons=[...document.querySelectorAll(".answer")];state.usedItems.add(id);if(id==="compass"){const count=ITEM_EFFECTS.compass.removeWrong;removeWrong(buttons,q,count);setStatus(`羅盤排除了 ${count} 個錯誤方向。`)}
+ else if(id==="lens"){setStatus(`提示：${q.hint}`)}
+ else if(id==="kit"){if(state.hp===state.hpMax){state.usedItems.delete(id);setStatus("守護心目前是滿的，工具箱留到受傷後再用。");return}const before=state.hp,heal=kitHeal();state.hp=Math.min(state.hpMax,state.hp+heal);save();renderBattle(`工具箱回復了 ${state.hp-before} 顆守護心，目前 ${state.hp} / ${state.hpMax}。`);itemFx(id,state.hp-before);return}
+ else if(id==="sand"){state.shield=ITEM_EFFECTS.sand.shield;setStatus(`沙漏已啟動：可以抵擋 ${state.shield} 次敵人攻擊。`)}
  else {state.armed=1;setStatus("證據印章已準備：下一次答對時回復 1 顆守護心。")}
  const b=document.querySelector(`[data-use="${id}"]`);if(b){const it=items.find(x=>x.id===id);b.disabled=true;b.innerHTML=`${itemArt(it,"item-mini-art")}<span><b>${esc(it.name)}・已使用</b><small>${esc(itemEffect(id))}</small></span>`}itemFx(id)}
 function setStatus(s){const status=document.querySelector("#status");status.hidden=false;status.textContent=s}

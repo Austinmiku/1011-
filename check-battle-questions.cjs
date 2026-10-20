@@ -33,7 +33,12 @@ function optionSimilarity(left, right) {
 
 assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(difficulties.map(d=>[d.enemy,d.attack,d.hearts]))', context)), Array(8).fill(null).map(() => [5, 1, 5]));
 assert.equal(vm.runInContext('questionsForLevel(8)', context), 10);
-assert.equal(vm.runInContext('itemEffect("stamp",8)', context), '下一次答對時回復 1 顆守護心。');
+assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(ITEM_EFFECTS)', context)), {
+  compass: { removeWrong: 1 }, lens: { hint: true }, kit: { heal: 1 }, sand: { shield: 1 }, stamp: { healOnCorrect: 1 },
+});
+for (const id of ['compass', 'lens', 'kit', 'sand', 'stamp']) {
+  assert.equal(vm.runInContext(`itemEffect("${id}",1)`, context), vm.runInContext(`itemEffect("${id}",8)`, context), `${id} must not scale with level`);
+}
 assert.doesNotMatch(html, /enemyDamage:|bonusDamage:/, 'events must not shorten the five-correct-answer threshold');
 assert.match(html, /\.bt-msgrow\.reason-active\{display:grid/, 'evidence feedback must use a horizontal row above the panel');
 assert.match(html, /row\.classList\.add\("reason-active"\)/, 'evidence step must activate the horizontal layout');
