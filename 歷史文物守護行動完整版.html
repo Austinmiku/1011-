@@ -644,6 +644,9 @@ const items=[
  {id:"sand",name:"時序沙漏",icon:"⌛",image:"assets/item-hourglass.webp",unlock:5,desc:"每場可抵擋一次答錯傷害。"},
  {id:"stamp",name:"證據印章",icon:"🔖",image:"assets/item-evidence-stamp.webp",unlock:7,desc:"下一次答對時回復一顆守護心。"}
 ];
+const loadoutItems=items.filter(item=>item.id!=="stamp");
+const availableLoadoutItems=()=>state.teacherMode?loadoutItems:loadoutItems.filter(item=>item.unlock<=state.unlocked);
+const loadoutLimit=()=>1;
 const EVENT_WEIGHTS={fortune:.30,knowledge:.25,strategy:.25,crisis:.20};
 const EVENT_CATEGORY_NAMES={fortune:"幸運與保護",knowledge:"知識事件",strategy:"策略選擇",crisis:"小危機"};
 const randomEvents=[
@@ -750,7 +753,7 @@ const kitHeal=()=>ITEM_EFFECTS.kit.heal;
 function itemEffect(id){if(id==="compass")return "排除 1 個錯誤選項。";if(id==="lens")return "顯示本題提示。";if(id==="kit")return "回復 1 顆守護心。";if(id==="sand")return "抵擋 1 次敵人攻擊。";return "下一次答對時回復 1 顆守護心。"}
 function prepare(n){
  state.level=n;if(state.hp<=0){state.hpMax=maxHeartsFor(state.unlocked);state.hp=state.hpMax;save()}state.entry++;state.spotOrder=shuffled([0,1],n*31+state.entry);
- const available=items.filter(x=>x.unlock<=state.unlocked),limit=n===levels.length?2:1;
+ const available=availableLoadoutItems(),limit=loadoutLimit();
  state.selectedItems=[];
  const l=levels[n-1],d=difficulties[n-1],meta=activeMeta(),unit=activeUnit();
  render(`<section class="screen departure"><div class="eyebrow">${unit?`${esc(unit.term)}・第 ${unit.unit} 單元`:`第 ${n} 關・${esc(l.unit)}`}</div><h2>${l.icon} ${esc(unit?.title||l.title)}</h2>${learningStrip(meta)}
@@ -1010,7 +1013,7 @@ function showEventQuiz(event,forced){const l=levels[state.level-1],offset=event.
 function showRandomEvent(id,forced=false){const event=randomEvents.find(e=>e.id===id);if(!event)return startBattle();if(event.id==="truth"||event.id==="label")return showEventQuiz(event,forced);const finish=(effect,result)=>finishEvent(event,effect,result,forced);let actions=[];
  if(event.id==="repair")actions=[{key:"repair",label:"接受修復",run:()=>finish({heal:1},"修復完成！回復 1 點守護心。")}];
  else if(event.id==="letter")actions=[{key:"read",label:"閱讀密函",run:()=>finish({removeWrong:1},"密函指出了辨認假線索的方法。第一題將自動排除一個錯誤選項。")}];
- else if(event.id==="supply"){const pool=items.filter(x=>x.unlock<=state.unlocked&&!state.selectedItems.includes(x.id)),rng=random(state.level*601+state.entry),item=pool[Math.floor(rng()*pool.length)];actions=[{key:"open",label:"打開補給箱",run:()=>item?finish({extraItem:item.id},`你借到「${item.name}」，本場可以額外使用一次。`):finish({heal:1},"補給箱裡有修復材料，回復 1 點守護心。")}];}
+ else if(event.id==="supply"){const pool=availableLoadoutItems().filter(x=>!state.selectedItems.includes(x.id)),rng=random(state.level*601+state.entry),item=pool[Math.floor(rng()*pool.length)];actions=[{key:"open",label:"打開補給箱",run:()=>item?finish({extraItem:item.id},`你借到「${item.name}」，本場可以額外使用一次。`):finish({heal:1},"補給箱裡有修復材料，回復 1 點守護心。")}];}
  else if(event.id==="tailwind")actions=[{key:"follow",label:"乘著順風前進",run:()=>finish({shield:1},"順風形成防護，本場可以抵擋一次攻擊。")}];
  else if(event.id==="ambush")actions=[{key:"guard",label:"保護線索",run:()=>finish({hpPenalty:1,openingHint:true},"你保住了線索，但消耗 1 點守護心。第一題會顯示提示，守護心不會因此低於 1。")}];
  else if(event.id==="fork")actions=[{key:"safe",label:"走安全小路",run:()=>finish({heal:1},"安全抵達！回復 1 點守護心。")},{key:"clue",label:"追蹤線索小路",run:()=>finish({openingHint:true},"你找到了關鍵線索，第一題會顯示提示。")}];
