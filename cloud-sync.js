@@ -202,16 +202,25 @@
       if (!CODE_PATTERN.test(code) || !password) { error.textContent = "請輸入 6 碼班級代碼與管理密碼。"; return; }
       go.disabled = true; go.textContent = "讀取中…"; error.textContent = "";
       try {
-        const report = await rpc("class_report", { p_code: code, p_password: password, p_level: null });
-        teacherAuth = { code, password };
-        write(TEACHER_CODE_KEY, code);
-        renderReport(report, null);
+        await openReport(code, password);
       } catch (err) {
         error.textContent = /invalid_class_or_password/.test(err.message) ? "班級代碼或管理密碼不正確。" : "目前連不上雲端，請稍後再試。";
         go.disabled = false; go.textContent = "查看作答紀錄";
       }
     };
   }
+
+  /* 教師模式首頁的「查看全班分析」直接呼叫這裡；錯誤訊息由呼叫端顯示 */
+  async function openReport(code, password) {
+    code = String(code || "").trim().toUpperCase();
+    if (!enabled) throw new Error("cloud_disabled");
+    if (!CODE_PATTERN.test(code) || !password) throw new Error("invalid_input");
+    const report = await rpc("class_report", { p_code: code, p_password: password, p_level: null });
+    teacherAuth = { code, password };
+    write(TEACHER_CODE_KEY, code);
+    renderReport(report, null);
+  }
+  const lastTeacherCode = () => read(TEACHER_CODE_KEY, "") || "";
 
   async function showReport(level = null) {
     if (!teacherAuth) return showTeacher();
@@ -237,6 +246,28 @@
     ["guide_read_rate", "導讀閱讀率", pct], ["event_quiz_rate", "事件題正確率", pct], ["exits", "學習單", v => v], ["last_active", "最後作答", when],
   ];
 
+  /* 報表最上方的分析重點：全班表現、需要關心的學生、最需要補強的目標、最多人選錯的選項 */
+  function insights(students, objectives, wrongs) {
+    const judged = students.reduce((sum, s) => sum + (s.judged || 0), 0);
+    const classRate = judged ? Math.round(students.reduce((sum, s) => sum + (Number(s.judge_first_rate) || 0) * (s.judged || 0), 0) / judged) : null;
+    const attention = students.map(s => {
+      const reasons = [];
+      if (s.judged >= 3 && Number(s.judge_first_rate) < 60) reasons.push(`首答正確率 ${s.judge_first_rate}%`);
+      if (s.quick_wrong >= 3) reasons.push(`快速答錯 ${s.quick_wrong} 題`);
+      if (s.unfinished >= 2) reasons.push(`未完成 ${s.unfinished} 場`);
+      if (s.defeats >= 2) reasons.push(`失敗 ${s.defeats} 場`);
+      return { seat: s.seat, reasons };
+    }).filter(x => x.reasons.length);
+    const weakest = objectives.find(o => o.first_rate !== null && Number(o.first_rate) < 80);
+    const topWrong = wrongs[0];
+    return `<section class="cloud-section cloud-insights"><h3>分析重點</h3><div class="insight-grid">
+      <article><small>全班首答正確率</small><b${low(classRate)}>${pct(classRate)}</b><span>共 ${students.length} 位學生、${judged} 題作答・完成 ${students.reduce((sum, s) => sum + (s.levels_cleared || 0), 0)} 個關卡</span></article>
+      <article><small>需要關心的學生</small>${attention.length ? `<ul>${attention.slice(0, 8).map(a => `<li><b>${a.seat} 號</b>：${esc(a.reasons.join("、"))}</li>`).join("")}</ul>${attention.length > 8 ? `<span>另有 ${attention.length - 8} 位，請看下方學生總覽</span>` : ""}` : "<span>目前沒有特別需要關心的學生。</span>"}</article>
+      <article><small>最需要補強</small>${weakest ? `<b>${esc(objectiveName(weakest.objective_id))}</b><span>首答正確率 ${pct(weakest.first_rate)}（${weakest.students} 人作答）</span>` : "<span>各單元首答正確率都在 80% 以上。</span>"}</article>
+      <article><small>最多人選錯</small>${topWrong ? `<b>「${esc(topWrong.choice)}」</b><span>${esc(questionText(topWrong.question_id))}<br>${topWrong.students} 人選過、共 ${topWrong.times} 次</span>` : "<span>還沒有答錯紀錄。</span>"}</article>
+    </div><p class="learn-note">「需要關心」的條件：作答 3 題以上且首答正確率低於 60%、快速答錯 3 題以上、未完成或失敗 2 場以上。</p></section>`;
+  }
+
   function renderReport(report, level) {
     const students = report.students || [], objectives = report.objectives || [], wrongs = report.wrong_choices || [], exits = report.exits || [];
     const cls = report.class || { name: "", code: teacherAuth.code };
@@ -244,6 +275,7 @@
       <div class="cloud-toolbar no-print"><label for="levelFilter">查看範圍</label><select id="levelFilter"><option value="">全部關卡</option>${levels.map((l, i) => `<option value="${i + 1}"${level === i + 1 ? " selected" : ""}>${esc(levelName(i + 1))}</option>`).join("")}</select>
         <button class="secondary" id="reportRefresh">重新整理</button><button class="secondary" id="exportStudents">匯出學生總覽 CSV</button><button class="secondary" id="exportRaw">匯出原始紀錄 CSV</button><button class="secondary" id="reportPrint">列印</button></div>
       ${students.length ? "" : `<p class="summary-empty">這個範圍還沒有作答紀錄。學生要先按「加入班級」並完成任務，紀錄才會出現。</p>`}
+      ${students.length ? insights(students, objectives, wrongs) : ""}
       ${students.length ? `<section class="cloud-section"><h3>學生總覽（${students.length} 人）</h3><div class="table-scroll"><table class="cloud-table"><thead><tr>${STUDENT_COLUMNS.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead><tbody>${students.map(s => `<tr>${STUDENT_COLUMNS.map(([k, , f]) => `<td${/rate/.test(k) ? low(s[k]) : ""}>${esc(f(s[k]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
         <details class="cloud-legend"><summary>指標說明</summary><dl>
           <dt>首答正確率</dt><dd>證據對決中第一次就判斷正確的比例，最能反映真正的理解。</dd>
@@ -257,8 +289,9 @@
       ${objectives.length ? `<section class="cloud-section"><h3>學習目標掌握度</h3><p>依首答正確率由低到高排列，排在前面的目標適合優先補強。（目前題庫每個單元只有一個學習目標代碼，所以這裡是以單元為單位；題庫補上更細的目標後會自動分開。）</p><div class="table-scroll"><table class="cloud-table"><thead><tr><th>學習目標</th><th>作答題數</th><th>作答人數</th><th>首答正確率</th></tr></thead><tbody>${objectives.map(o => `<tr><td>${esc(objectiveName(o.objective_id))}</td><td>${o.answered}</td><td>${o.students}</td><td${low(o.first_rate)}>${pct(o.first_rate)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
       ${wrongs.length ? `<section class="cloud-section"><h3>常選錯的選項</h3><div class="table-scroll"><table class="cloud-table"><thead><tr><th>題目</th><th>選錯的選項</th><th>次數</th><th>人數</th></tr></thead><tbody>${wrongs.map(w => `<tr><td><small>${esc(levelName(w.level))}</small><br>${esc(questionText(w.question_id))}</td><td>${esc(w.choice)}</td><td>${w.times}</td><td>${w.students}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
       ${exits.length ? `<section class="cloud-section"><h3>區域學習單（${exits.length} 份）</h3><div class="summary-list">${exits.map(x => `<article class="summary-entry"><div class="meta"><span>${x.seat} 號</span><span>${esc(levelName(x.level))}</span><span>課前：${esc(x.prediction || "未作答")}</span><span>確定程度：${esc(x.confidence || "—")}</span><span>${when(x.created_at)}</span></div>${esc(x.response || "")}</article>`).join("")}</div></section>` : ""}
-      <div class="row no-print" style="margin-top:18px"><button class="secondary" id="cloudBack">返回雲端班級</button></div></section>`);
-    document.querySelector("#cloudBack").onclick = showTeacher;
+      <div class="row no-print" style="margin-top:18px"><button class="secondary" id="cloudBack">返回教師課堂模式</button><button class="secondary" id="cloudManage">建立或切換班級</button></div></section>`);
+    document.querySelector("#cloudBack").onclick = showTeacherMode;
+    document.querySelector("#cloudManage").onclick = showTeacher;
     document.querySelector("#reportRefresh").onclick = () => showReport(level);
     document.querySelector("#reportPrint").onclick = () => window.print();
     document.querySelector("#levelFilter").onchange = e => showReport(e.target.value ? Number(e.target.value) : null);
@@ -275,5 +308,5 @@
     };
   }
 
-  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, _rpc: rpc };
+  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, _rpc: rpc };
 })();
