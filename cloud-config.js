@@ -7,6 +7,6 @@
 //
 // 設定步驟見 README 的「雲端作答紀錄」。
 window.GUARDIAN_CLOUD_CONFIG = {
-  url: "",
-  publishableKey: "",
+  url: "https://pctxvxeiromszngbqqzu.supabase.co",
+  publishableKey: "sb_publishable_0evoxVzt8UtIX58zf9XI9Q_pCEwD7ta",
 };

@@ -8,7 +8,8 @@ const html = fs.readFileSync(path.join(__dirname, '歷史文物守護行動完�
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1].split('document.querySelector("#largeBtn").onclick=')[0];
 assert.match(html, /<script src="cloud-config\.js"><\/script>\s*<script src="cloud-sync\.js"><\/script>/, 'cloud scripts load before the game script');
 const config = fs.readFileSync(path.join(__dirname, 'cloud-config.js'), 'utf8');
-assert.match(config, /url: "",\s*publishableKey: ""/, 'the committed config must stay empty');
+assert.doesNotMatch(config, /publishableKey: "sb_secret_/, 'cloud-config.js must never contain a secret key');
+assert.match(config, /publishableKey: "(sb_publishable_[\w-]*|eyJ[\w.-]*|)"/, 'cloud-config.js only takes a publishable (or legacy anon) key');
 
 // 一個寬鬆的假 DOM：沒登記的選擇器都回傳不做事的元素
 function element(extra = {}) {
