@@ -33,6 +33,20 @@
     return data;
   }
 
+  // 資料庫還沒更新到新版 schema 時，新函式不存在，PostgREST 回 404
+  const missingFunction = err => err && err.status === 404;
+  const cleanLevels = list => [...new Set((Array.isArray(list) ? list : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 20))].sort((a, b) => a - b);
+  async function classInfo(code) {
+    try {
+      const info = await rpc("class_info", { p_code: code });
+      return info ? { name: info.name, openLevels: cleanLevels(info.open_levels) } : null;
+    } catch (err) {
+      if (!missingFunction(err)) throw err;
+      const name = await rpc("check_class", { p_code: code });
+      return name ? { name, openLevels: [] } : null;
+    }
+  }
+
   /* ===== 作答佇列 ===== */
   let queue = read(QUEUE_KEY, null);
   if (!queue || typeof queue !== "object" || !Array.isArray(queue.events) || typeof queue.sessions !== "object") queue = { sessions: {}, events: [] };
@@ -107,6 +121,20 @@
   if (enabled && typeof document !== "undefined" && document.addEventListener) {
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush({ keepalive: true }); });
     setTimeout(() => flush(), 4000);
+    setTimeout(() => refreshClass(), 1500);
+  }
+  /* 老師可能改了開放的關卡：開遊戲時重新讀一次，地圖正開著就重畫 */
+  async function refreshClass() {
+    const m = member();
+    if (!enabled || !m) return;
+    try {
+      const info = await classInfo(m.code);
+      if (!info) return;
+      const changed = info.name !== m.name || String(info.openLevels) !== String(m.openLevels || []);
+      state.cloudClass = { ...m, name: info.name, openLevels: info.openLevels };
+      save();
+      if (changed && document.querySelector(".adventure-map")) showMap();
+    } catch { /* 離線時沿用上次的設定 */ }
   }
 
   /* ===== 學生：加入班級 ===== */
@@ -136,16 +164,31 @@
       if (!enabled) { error.textContent = "這個版本還沒有設定雲端資料庫，請告訴老師。"; return; }
       go.disabled = true; go.textContent = "確認中…"; error.textContent = "";
       try {
-        const name = await rpc("check_class", { p_code: code });
-        if (!name) { error.textContent = "找不到這個班級代碼，請再跟老師確認。"; return; }
-        state.cloudClass = { code, name, seat }; save();
-        toast(`已加入 ${name}・${seat} 號`);
+        const info = await classInfo(code);
+        if (!info) { error.textContent = "找不到這個班級代碼，請再跟老師確認。"; return; }
+        state.cloudClass = { code, name: info.name, seat, openLevels: info.openLevels }; save();
+        toast(info.openLevels.length ? `已加入 ${info.name}・${seat} 號，老師開放了 ${info.openLevels.length} 個關卡` : `已加入 ${info.name}・${seat} 號`);
         back();
       } catch { error.textContent = "目前連不上雲端，請檢查網路後再試一次。"; }
       finally { if (go.isConnected) { go.disabled = false; go.textContent = "加入班級"; } }
     };
     codeInput.focus();
   }
+
+  /* ===== 教師：開放關卡的勾選元件 ===== */
+  function levelPicker(id, selected) {
+    const chosen = new Set(selected || []);
+    return `<div class="level-picker-tools"><button class="link-button" type="button" data-pick-all="${id}">全選</button><button class="link-button" type="button" data-pick-none="${id}">全部取消</button></div>
+      <div class="level-picker" id="${id}">${["五上", "五下"].map(term => `<fieldset><legend>${term}</legend>${levels.map((l, i) => ({ l, n: i + 1, unit: curriculum.units[i] })).filter(x => x.unit && x.unit.term === term).map(x => `<label><input type="checkbox" data-class-level value="${x.n}"${chosen.has(x.n) ? " checked" : ""}>第 ${x.n} 關・${esc(x.l.title)}</label>`).join("")}</fieldset>`).join("")}</div>`;
+  }
+  const pickedLevels = id => [...document.querySelectorAll(`#${id} [data-class-level]:checked`)].map(x => Number(x.value));
+  function bindPicker(id) {
+    const all = document.querySelector(`[data-pick-all="${id}"]`), none = document.querySelector(`[data-pick-none="${id}"]`);
+    const set = on => document.querySelectorAll(`#${id} [data-class-level]`).forEach(x => { x.checked = on; });
+    if (all) all.onclick = () => set(true);
+    if (none) none.onclick = () => set(false);
+  }
+  const levelList = list => list.length ? list.map(n => `第 ${n} 關`).join("、") : "沒有（學生照一般模式一關一關解鎖）";
 
   /* ===== 教師：建立班級與查閱作答 ===== */
   let teacherAuth = null; // { code, password }：只放在記憶體，重新整理頁面後要重新輸入
@@ -163,6 +206,8 @@
             <label for="newName">班級名稱</label><input class="name-input" id="newName" maxlength="40" placeholder="例如 五年甲班">
             <label for="newPass">管理密碼（至少 6 個字）</label><input class="name-input" id="newPass" type="password" autocomplete="new-password">
             <label for="newPass2">再輸入一次管理密碼</label><input class="name-input" id="newPass2" type="password" autocomplete="new-password">
+            <span class="cloud-form-label">開放給學生的關卡（可複選）</span><p class="learn-note">勾選的關卡，學生加入班級後可以直接遊玩，不用先破前面的關卡。之後也可以在全班分析頁面修改。</p>
+            ${levelPicker("newLevels", [])}
             <p class="name-error" id="createError" role="alert" aria-live="polite"></p>
             <button class="primary" type="submit" id="createGo">建立班級</button>
           </form><div id="createResult"></div></section>
@@ -177,6 +222,7 @@
       <p class="learn-note">管理密碼請自行保存，遺失後無法查回。資料只有座號與作答內容，不含學生姓名；學生要自己按「加入班級」，作答才會被記錄。</p>
       <button class="secondary" id="cloudBack">返回教師模式</button></section>`);
     document.querySelector("#cloudBack").onclick = showTeacherMode;
+    bindPicker("newLevels");
     const upper = el => el.oninput = () => { el.value = el.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); };
     upper(document.querySelector("#viewCode"));
     document.querySelector("#createForm").onsubmit = async e => {
@@ -187,10 +233,14 @@
       if (pass !== pass2) { error.textContent = "兩次輸入的管理密碼不一樣。"; return; }
       go.disabled = true; go.textContent = "建立中…"; error.textContent = "";
       try {
-        const rows = await rpc("create_class", { p_name: name, p_password: pass }), made = Array.isArray(rows) ? rows[0] : rows;
+        const open = pickedLevels("newLevels");
+        let rows, outdated = false;
+        try { rows = await rpc("create_class", { p_name: name, p_password: pass, p_open_levels: open }); }
+        catch (err) { if (!missingFunction(err)) throw err; outdated = true; rows = await rpc("create_class", { p_name: name, p_password: pass }); }
+        const made = Array.isArray(rows) ? rows[0] : rows, saved = outdated ? [] : cleanLevels(made.open_levels);
         write(TEACHER_CODE_KEY, made.code);
         teacherAuth = { code: made.code, password: pass };
-        document.querySelector("#createResult").innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div>`;
+        document.querySelector("#createResult").innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><span>開放的關卡：${levelList(saved)}</span>${outdated && open.length ? `<span class="name-error">資料庫還是舊版，開放關卡沒有儲存。請在 Supabase 重新執行 supabase/schema.sql。</span>` : ""}<button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div>`;
         document.querySelector("#createForm").reset();
         document.querySelector("#openNew").onclick = () => showReport();
       } catch (err) { error.textContent = `建立失敗：${err.message === "password_too_short" ? "管理密碼太短。" : "目前連不上雲端，請稍後再試。"}`; }
@@ -272,6 +322,10 @@
     const students = report.students || [], objectives = report.objectives || [], wrongs = report.wrong_choices || [], exits = report.exits || [];
     const cls = report.class || { name: "", code: teacherAuth.code };
     render(`<section class="screen cloud-screen cloud-report"><div class="eyebrow">教師模式・雲端作答紀錄</div><h2>${esc(cls.name)}<small>班級代碼 ${esc(cls.code)}</small></h2>
+      <details class="class-settings no-print"${cleanLevels(cls.open_levels).length ? "" : " open"}><summary><b>班級設定：開放給學生的關卡</b>　目前：${esc(levelList(cleanLevels(cls.open_levels)))}</summary>
+        <p class="learn-note">勾選的關卡，加入這個班級的學生可以直接遊玩，不用先破前面的關卡。學生下次打開遊戲就會更新。</p>
+        ${levelPicker("classLevels", cleanLevels(cls.open_levels))}
+        <div class="row"><button class="primary" type="button" id="saveLevels">儲存開放的關卡</button><span class="status-inline" id="levelsStatus" role="status" aria-live="polite"></span></div></details>
       <div class="cloud-toolbar no-print"><label for="levelFilter">查看範圍</label><select id="levelFilter"><option value="">全部關卡</option>${levels.map((l, i) => `<option value="${i + 1}"${level === i + 1 ? " selected" : ""}>${esc(levelName(i + 1))}</option>`).join("")}</select>
         <button class="secondary" id="reportRefresh">重新整理</button><button class="secondary" id="exportStudents">匯出學生總覽 CSV</button><button class="secondary" id="exportRaw">匯出原始紀錄 CSV</button><button class="secondary" id="reportPrint">列印</button></div>
       ${students.length ? "" : `<p class="summary-empty">這個範圍還沒有作答紀錄。學生要先按「加入班級」並完成任務，紀錄才會出現。</p>`}
@@ -293,6 +347,18 @@
     document.querySelector("#cloudBack").onclick = showTeacherMode;
     document.querySelector("#cloudManage").onclick = showTeacher;
     document.querySelector("#reportRefresh").onclick = () => showReport(level);
+    bindPicker("classLevels");
+    document.querySelector("#saveLevels").onclick = async e => {
+      const b = e.currentTarget, status = document.querySelector("#levelsStatus");
+      b.disabled = true; status.textContent = "儲存中…";
+      try {
+        const saved = cleanLevels(await rpc("set_class_levels", { p_code: teacherAuth.code, p_password: teacherAuth.password, p_levels: pickedLevels("classLevels") }));
+        status.textContent = `已儲存：${levelList(saved)}`;
+        const summary = document.querySelector(".class-settings summary");
+        if (summary) summary.innerHTML = `<b>班級設定：開放給學生的關卡</b>　目前：${esc(levelList(saved))}`;
+      } catch (err) { status.textContent = missingFunction(err) ? "資料庫還是舊版，請在 Supabase 重新執行 supabase/schema.sql。" : "儲存失敗，請稍後再試。"; }
+      finally { b.disabled = false; }
+    };
     document.querySelector("#reportPrint").onclick = () => window.print();
     document.querySelector("#levelFilter").onchange = e => showReport(e.target.value ? Number(e.target.value) : null);
     document.querySelector("#exportStudents").onclick = () => download(`${cls.name}-學生總覽.csv`, toCsv([STUDENT_COLUMNS.map(c => c[1]), ...students.map(s => STUDENT_COLUMNS.map(([k, , f]) => k === "last_active" ? s[k] || "" : f(s[k])))]));
@@ -308,5 +374,5 @@
     };
   }
 
-  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, _rpc: rpc };
+  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, refreshClass, _rpc: rpc };
 })();

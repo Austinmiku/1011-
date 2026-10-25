@@ -17,7 +17,7 @@ function element(extra = {}) {
   return Object.assign({
     textContent: '', innerHTML: '', value: '', disabled: false, dataset: {}, style: { setProperty() {} },
     classList: { add: (...n) => n.forEach(x => classes.add(x)), remove: (...n) => n.forEach(x => classes.delete(x)), toggle() {}, contains: n => classes.has(n) },
-    setAttribute() {}, focus() {}, append() {}, appendChild() {}, remove() {}, animate() { return { finished: Promise.resolve(), cancel() {} }; },
+    setAttribute() {}, focus() {}, addEventListener() {}, append() {}, appendChild() {}, remove() {}, animate() { return { finished: Promise.resolve(), cancel() {} }; },
     querySelector() { return element(); }, querySelectorAll() { return []; }, closest() { return element(); }, getAnimations() { return []; }, getTotalLength() { return 100; },
     getBoundingClientRect() { return { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }; },
   }, extra);
@@ -155,5 +155,30 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   await tick(); await tick();
   assert.equal(rejected.run('cloud.pending()'), 0, 'rejected batches are dropped instead of retried forever');
 
-  console.log('Cloud logging: session flow, event fields, retries and key checks passed');
+  // 老師開放的關卡：沒破前面的關卡也能直接玩，並標示「老師開放」
+  const mapNodes = () => Object.fromEntries([...markup.matchAll(/<button class="map-level pos-(\d) [^"]*" data-level="\d" (disabled)?[^>]*>[\s\S]*?<small>([^<]*)<\/small>/g)].map(m => [+m[1], { locked: !!m[2], status: m[3] }]));
+  const classGame = load();
+  classGame.run('state.playerName="小安";state.unlocked=1;state.done=new Set();state.cloudClass={code:"K7QX2M",name:"五年甲班",seat:3,openLevels:[5,7]};showMap()');
+  let nodes = mapNodes();
+  assert.equal(nodes[1].locked, false);
+  assert.equal(nodes[2].locked, true, 'levels the teacher did not open still follow the story order');
+  assert.deepEqual([nodes[5].locked, nodes[5].status], [false, '下一站'], 'the next-step marker moves to the first level the teacher opened');
+  assert.match(markup, /map-next[\s\S]*?第 5 關/);
+  assert.deepEqual([nodes[7].locked, nodes[7].status], [false, '老師開放']);
+  assert.match(markup, /class-open-note[\s\S]*第 5 關[\s\S]*第 7 關/);
+  // 跳關完成老師開放的關卡，不會順便解鎖中間的關卡，也不會提早出現結局
+  classGame.run('state.level=5;showReward()');
+  assert.equal(classGame.run('state.unlocked'), 1);
+  assert.equal(classGame.run('state.done.has(5)'), true);
+  assert.match(markup, /回到行動地圖/);
+  classGame.run('state.level=1;showReward()');
+  assert.equal(classGame.run('state.unlocked'), 2, 'finishing a level in story order still unlocks the next one');
+  classGame.run('state.cloudClass.openLevels=[8];state.level=8;showReward()');
+  assert.doesNotMatch(markup, /觀看守護行動結局/, 'the ending only appears after all eight artifacts are restored');
+  // 沒加入班級時照一般模式
+  classGame.run('state.cloudClass=null;state.unlocked=1;showMap()');
+  nodes = mapNodes();
+  assert.equal(nodes[5].locked, true);
+
+  console.log('Cloud logging: session flow, event fields, retries, key checks and class open levels passed');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -55,6 +55,6 @@ assert.match(html, /區域學習單・把證據帶回生活/);
 assert.match(html, /<h2>\$\{esc\(meta\.prediction\)\}<\/h2><p class="exit-subtitle">\$\{esc\(meta\.exitPrompt\)\}<\/p>/);
 assert.doesNotMatch(html, /離場單/);
 assert.match(html, /function showTeacherMode\(/);
-assert.match(html, /data-teacher-unit/);
+assert.doesNotMatch(html, /data-teacher-unit/, 'teacher mode no longer starts units; classes open levels for students instead');
 
 console.log('Classroom inquiry flow, curriculum metadata and legacy save migration passed');

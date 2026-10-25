@@ -54,13 +54,16 @@ firebase.cmd deploy --only hosting
 3. 到 **Project Settings → API Keys** 複製 **Project URL** 和 **publishable key**（`sb_publishable_` 開頭）。
 4. 填進 `cloud-config.js` 的 `url` 與 `publishableKey`，再部署一次。
 
+**遊戲更新後**：`schema.sql` 可以重複執行。遊戲新增資料庫功能時（例如班級開放關卡），在 SQL Editor 貼上最新的整份 `schema.sql` 再執行一次即可，既有班級與作答紀錄不會被刪除。
+
 publishable key 本來就是公開金鑰，可以放在網頁裡；資料表都開啟了 Row Level Security，瀏覽器只能透過 `schema.sql` 裡的函式寫入作答，讀取一定要有班級管理密碼。**不要**把 secret key 或 service_role key 填進 `cloud-config.js`，遊戲偵測到會拒絕使用。
 
 ### 課堂使用流程
 
-1. 老師：教師課堂模式 →「學生作答分析」→「還沒有班級？建立班級」，取得 6 碼班級代碼。管理密碼請自行保存，遺失無法查回。
-2. 學生：首頁或任務地圖按「加入班級」，輸入班級代碼和座號。資料庫只存座號，不存名字。
+1. 老師：教師課堂模式 →「學生作答分析」→「還沒有班級？建立班級」，填班級名稱、管理密碼，並勾選**開放給學生的關卡**，取得 6 碼班級代碼。管理密碼請自行保存，遺失無法查回。
+2. 學生：首頁或任務地圖按「加入班級」，輸入班級代碼和座號。資料庫只存座號，不存名字。老師開放的關卡會在地圖上標示「老師開放」，不用先破前面的關卡就能直接玩；沒開放的關卡仍照一般模式依序解鎖。
 3. 老師：在教師課堂模式的「全班作答分析」輸入班級代碼與管理密碼，查看分析重點（全班首答正確率、需要關心的學生、最需要補強的單元、最多人選錯的選項）、學生總覽、學習目標掌握度、常選錯的選項與區域學習單，可依關卡篩選、列印或匯出 CSV。
+4. 老師：上課進度改變時，在全班分析頁最上方的「班級設定」重新勾選開放的關卡並儲存，學生下次打開遊戲就會更新。
 
 ### 記錄的內容
 
@@ -77,6 +80,28 @@ publishable key 本來就是公開金鑰，可以放在網頁裡；資料表都�
 
 作答先存在瀏覽器的佇列，再分批送出；離線或連線失敗時會保留，下次開遊戲再補送，重送不會重複。
 
+## 字型
+
+| 用途 | 字型 | 授權 |
+|---|---|---|
+| 內文、按鈕、表單 | jf open 粉圓（`Game Huninn TC`） | SIL OFL 1.1 |
+| 標題 | 思源宋體 Noto Serif TC（`Game Noto Serif TC`） | SIL OFL 1.1 |
+| 劇情、線索筆記 | 霞鶩文楷 TC（`Game WenKai TC`） | SIL OFL 1.1 |
+
+為了讓直接開啟 HTML 檔也能顯示字型，三套字型以 base64 內嵌在完整版 HTML 裡，而且只收錄遊戲用到的字。**新增題目或任何畫面文字後**，請重新製作字型，否則新的字會改用系統字型顯示，看起來字體跑掉：
+
+1. 下載三個原始字型檔放在同一個資料夾（不要放進專案）：
+   - `jf-openhuninn-2.1.ttf`：<https://github.com/justfont/open-huninn-font/releases>
+   - `NotoSerifTC[wght].ttf`：<https://github.com/google/fonts/tree/main/ofl/notoseriftc>
+   - `LXGWWenKaiTC-Regular.ttf`：<https://github.com/lxgw/LxgwWenkaiTC/releases>
+2. 安裝工具並執行（需要 `pip install fonttools brotli`）：
+
+```powershell
+python tools/build-game-fonts.py "放原始字型的資料夾"
+```
+
+工具會更新 HTML 裡的內嵌字型、`assets/fonts` 的精簡字型檔，以及 `assets/fonts/game-fonts.json`（每套字型收錄的字）。`check-fonts.cjs` 會比對遊戲畫面上的文字，有缺字時列出來。
+
 ## 內容
 
 - 八個完整關卡與連續劇情，每關名稱對應五上或五下第 1～4 單元
@@ -89,7 +114,8 @@ publishable key 本來就是公開金鑰，可以放在網頁裡；資料表都�
 - 課前預測、探索驗證、選擇題戰鬥與區域學習單；答題後直接顯示解析，學習單以原始問題為標題、作答提示為副標題
 - 五上、五下各四個單元各 15 題；題目與選項取自月考卷 A、月考卷 B、隨堂卷，同場不重複
 - 每個答案選項提供對應題目與選項的差異化回饋
-- 教師課堂模式以分析學生作答表現為主：全班作答分析（雲端、依座號）與本機作答分析；也可直接選單元、暫停講解
+- 教師課堂模式以分析學生作答表現為主：全班作答分析（雲端、依座號）與本機作答分析；需要講解時可暫停畫面
+- 老師可替每個班級設定開放的關卡，學生不必照順序破關就能玩到上課進度的單元
 
 ## 檔案
 
@@ -97,6 +123,8 @@ publishable key 本來就是公開金鑰，可以放在網頁裡；資料表都�
 - `question-bank.js`：八單元共 120 題，以及逐選項回饋、迷思、證據與來源資料
 - `curriculum-data.js`：上下學期八單元課程定位、學習目標與探究任務
 - `tools/export-question-bank.py`：將 Excel 題庫重新轉成 JS 的工具
+- `tools/build-game-fonts.py`：重新製作內嵌字型，收齊遊戲用到的每一個字
+- `check-fonts.cjs`：檢查內嵌字型有沒有缺字
 - `cloud-config.js`：雲端作答紀錄的 Supabase 網址與 publishable key
 - `cloud-sync.js`：作答記錄、送出佇列、學生加入班級與教師查閱畫面
 - `supabase/schema.sql`：資料表、權限與查詢函式，在 Supabase SQL Editor 執行一次

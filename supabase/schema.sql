@@ -1,14 +1,17 @@
 -- 歷史文物守護行動：雲端作答紀錄（Supabase / PostgreSQL）
--- 使用方式：在 Supabase 專案的 SQL Editor 貼上整份檔案執行一次。
+-- 使用方式：在 Supabase 專案的 SQL Editor 貼上整份檔案執行。
+--           這份檔案可以重複執行；遊戲更新後若有新欄位或新函式，再貼上整份執行一次即可，既有資料不會被刪除。
 --
 -- 安全設計：
 --   * 三張資料表都開啟 Row Level Security 且不給任何政策，瀏覽器（anon）不能直接讀寫。
---   * 遊戲只能透過下面五個函式存取：
---       create_class   老師建立班級，取得班級代碼
---       check_class    學生加入班級前確認代碼存在
---       record_events  遊戲寫入作答紀錄（只能新增，不能讀）
---       class_report   老師用代碼＋管理密碼讀取統計
---       class_events   老師用代碼＋管理密碼匯出原始紀錄
+--   * 遊戲只能透過下面的函式存取：
+--       create_class      老師建立班級（可同時設定開放給學生的關卡），取得班級代碼
+--       class_info        學生加入班級時取得班級名稱與老師開放的關卡
+--       check_class       舊版遊戲使用：確認班級代碼存在
+--       record_events     遊戲寫入作答紀錄（只能新增，不能讀）
+--       set_class_levels  老師用代碼＋管理密碼修改開放的關卡
+--       class_report      老師用代碼＋管理密碼讀取統計
+--       class_events      老師用代碼＋管理密碼匯出原始紀錄
 --   * 管理密碼以 bcrypt 雜湊保存；資料庫裡沒有學生姓名，只有座號。
 
 create schema if not exists extensions;
@@ -22,6 +25,8 @@ create table if not exists public.classes (
   password_hash text not null,
   created_at    timestamptz not null default now()
 );
+-- 老師開放給學生直接遊玩的關卡（關卡編號 1–8）；空陣列代表照一般模式一關一關解鎖
+alter table public.classes add column if not exists open_levels smallint[] not null default '{}';
 
 -- 一次「出發」到「過關／失敗」算一場
 create table if not exists public.play_sessions (
@@ -79,9 +84,21 @@ revoke all on public.classes, public.play_sessions, public.answer_events from pu
 
 -- ===== 函式 =====
 
--- 老師建立班級：回傳 6 碼班級代碼（不含容易看錯的 0、O、1、I）
-create or replace function public.create_class(p_name text, p_password text)
-returns table (code text, name text)
+-- 舊版的 create_class 只有兩個參數，換成可以設定開放關卡的版本
+drop function if exists public.create_class(text, text);
+
+-- 整理關卡清單：只留 1–20、去除重複並排序
+create or replace function public.clean_levels(p_levels int[])
+returns smallint[]
+language sql immutable set search_path = ''
+as $$
+  select coalesce(array_agg(distinct x::smallint order by x::smallint), '{}')
+  from unnest(coalesce(p_levels, '{}')) as x where x between 1 and 20;
+$$;
+
+-- 老師建立班級：回傳 6 碼班級代碼（不含容易看錯的 0、O、1、I）與開放的關卡
+create or replace function public.create_class(p_name text, p_password text, p_open_levels int[] default '{}')
+returns table (code text, name text, open_levels smallint[])
 language plpgsql security definer set search_path = ''
 as $$
 declare
@@ -95,13 +112,22 @@ begin
     select string_agg(substr(alphabet, 1 + floor(random() * 32)::int, 1), '') into new_code from generate_series(1, 6);
     exit when not exists (select 1 from public.classes c where c.code = new_code);
   end loop;
-  insert into public.classes (code, name, password_hash)
-  values (new_code, p_name, extensions.crypt(p_password, extensions.gen_salt('bf')));
-  return query select new_code, p_name;
+  insert into public.classes (code, name, password_hash, open_levels)
+  values (new_code, p_name, extensions.crypt(p_password, extensions.gen_salt('bf')), public.clean_levels(p_open_levels));
+  return query select c.code, c.name, c.open_levels from public.classes c where c.code = new_code;
 end;
 $$;
 
--- 學生加入班級前確認代碼：存在就回傳班級名稱，否則回傳 null
+-- 學生加入班級：回傳 { name, open_levels }，代碼不存在時回傳 null
+create or replace function public.class_info(p_code text)
+returns jsonb
+language sql stable security definer set search_path = ''
+as $$
+  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels))
+  from public.classes c where c.code = upper(btrim(p_code));
+$$;
+
+-- 舊版遊戲使用：存在就回傳班級名稱，否則回傳 null
 create or replace function public.check_class(p_code text)
 returns text
 language sql stable security definer set search_path = ''
@@ -179,6 +205,20 @@ begin
 end;
 $$;
 
+-- 老師修改開放給學生的關卡，回傳修改後的關卡清單
+create or replace function public.set_class_levels(p_code text, p_password text, p_levels int[])
+returns smallint[]
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_code text := public.verify_class_password(p_code, p_password);
+  result smallint[];
+begin
+  update public.classes c set open_levels = public.clean_levels(p_levels) where c.code = v_code returning c.open_levels into result;
+  return result;
+end;
+$$;
+
 -- 老師查閱：學生總覽、學習目標掌握度、常錯選項、區域學習單。p_level 為 null 時看全部關卡
 create or replace function public.class_report(p_code text, p_password text, p_level int default null)
 returns jsonb
@@ -218,7 +258,7 @@ begin
     from e group by seat
   )
   select jsonb_build_object(
-    'class', (select jsonb_build_object('code', c.code, 'name', c.name) from public.classes c where c.code = v_code),
+    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels)) from public.classes c where c.code = v_code),
     'level', p_level,
     'students', coalesce((
       select jsonb_agg(to_jsonb(t) order by t.seat) from (
@@ -274,7 +314,8 @@ begin
 end;
 $$;
 
-revoke all on function public.create_class(text, text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
-  public.verify_class_password(text, text), public.class_report(text, text, int), public.class_events(text, text) from public;
-grant execute on function public.create_class(text, text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
-  public.class_report(text, text, int), public.class_events(text, text) to anon, authenticated;
+revoke all on function public.create_class(text, text, int[]), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
+  public.set_class_levels(text, text, int[]), public.verify_class_password(text, text), public.clean_levels(int[]),
+  public.class_report(text, text, int), public.class_events(text, text) from public;
+grant execute on function public.create_class(text, text, int[]), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
+  public.set_class_levels(text, text, int[]), public.class_report(text, text, int), public.class_events(text, text) to anon, authenticated;
