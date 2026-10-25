@@ -14,7 +14,8 @@
       "**/*.py",
       "docs/**",
       "openspec/**",
-      "tools/**"
+      "tools/**",
+      "supabase/**"
     ]
   }
 }
