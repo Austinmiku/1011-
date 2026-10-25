@@ -34,16 +34,16 @@ function optionSimilarity(left, right) {
 assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(difficulties.map(d=>[d.enemy,d.attack,d.hearts]))', context)), Array(8).fill(null).map(() => [5, 1, 5]));
 assert.equal(vm.runInContext('questionsForLevel(8)', context), 10);
 assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(ITEM_EFFECTS)', context)), {
-  compass: { removeWrong: 1 }, lens: { hint: true }, kit: { heal: 1 }, sand: { shield: 1 }, stamp: { healOnCorrect: 1 },
+  compass: { removeWrong: 1 }, kit: { heal: 1 }, sand: { shield: 1 }, stamp: { healOnCorrect: 1 },
 });
-for (const id of ['compass', 'lens', 'kit', 'sand', 'stamp']) {
+for (const id of ['compass', 'kit', 'sand', 'stamp']) {
   assert.equal(vm.runInContext(`itemEffect("${id}",1)`, context), vm.runInContext(`itemEffect("${id}",8)`, context), `${id} must not scale with level`);
 }
-assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(loadoutItems.map(item=>item.id))', context)), ['compass', 'lens', 'kit', 'sand']);
-assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=true;state.unlocked=1;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'lens', 'kit', 'sand']);
+assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(loadoutItems.map(item=>item.id))', context)), ['compass', 'kit', 'sand']);
+assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=true;state.unlocked=1;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'kit', 'sand']);
 assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=false;state.unlocked=1;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'kit']);
-assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=false;state.unlocked=2;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'lens', 'kit']);
-assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=false;state.unlocked=5;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'lens', 'kit', 'sand']);
+assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=false;state.unlocked=2;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'kit']);
+assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=false;state.unlocked=5;JSON.stringify(availableLoadoutItems().map(item=>item.id))', context)), ['compass', 'kit', 'sand']);
 assert.equal(vm.runInContext('state.teacherMode=true;state.level=8;loadoutLimit()', context), 1);
 assert.equal(vm.runInContext('state.teacherMode=false;state.level=8;loadoutLimit()', context), 1);
 assert.doesNotMatch(html, /enemyDamage:|bonusDamage:/, 'events must not shorten the five-correct-answer threshold');

@@ -282,7 +282,7 @@
     ["seat", "座號", v => v], ["levels_cleared", "完成關卡", v => v], ["defeats", "失敗", v => v], ["unfinished", "未完成", v => v],
     ["judge_first_rate", "首答正確率", pct], ["avg_judge_sec", "平均作答秒數", v => num(v, " 秒")],
     ["quick_wrong", "快速答錯", v => v], ["explore_avg_wrong", "探索平均錯次", v => num(v)], ["hints_used", "提示道具", v => v],
-    ["guide_read_rate", "導讀閱讀率", pct], ["event_quiz_rate", "事件題正確率", pct], ["exits", "學習單", v => v], ["last_active", "最後作答", when],
+    ["guide_read_rate", "導讀閱讀率", pct], ["exits", "學習單", v => v], ["last_active", "最後作答", when],
   ];
 
   /* 報表最上方的分析重點：全班表現、需要關心的學生、最需要補強的目標、最多人選錯的選項 */
@@ -325,7 +325,7 @@
           <dt>平均作答秒數</dt><dd>從題目出現到判斷正確所花的時間。</dd>
           <dt>快速答錯</dt><dd>4 秒內就作答且答錯的題數，可能是沒讀題就猜。</dd>
           <dt>探索平均錯次</dt><dd>每個調查點答對前平均選錯幾次，反映讀資料、找線索的能力。</dd>
-          <dt>提示道具</dt><dd>使用線索放大鏡（看提示）或航海羅盤（刪選項）的次數。</dd>
+          <dt>提示道具</dt><dd>使用航海羅盤排除錯誤選項的次數。</dd>
           <dt>導讀閱讀率</dt><dd>單元導讀實際翻過的頁數比例。</dd>
           <dt>未完成</dt><dd>出發後沒有打到過關或失敗就離開的場次。</dd>
         </dl><p>低於 60% 的比例會以紅色標示。</p></details></section>` : ""}

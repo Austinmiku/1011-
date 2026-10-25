@@ -75,7 +75,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(run('cloud.pending()'), 0, 'nothing is queued before joining a class');
 
   // 加入班級後完整走一場
-  run('state.playerName="小安";state.cloudClass={code:"K7QX2M",name:"五年甲班",seat:3};state.level=1;state.entry=2;state.selectedItems=["lens"]');
+  run('state.playerName="小安";state.cloudClass={code:"K7QX2M",name:"五年甲班",seat:3};state.level=1;state.entry=2;state.selectedItems=["compass"]');
   assert.equal(run('cloud.classLabel()'), '五年甲班・3 號');
   run('cloud.startSession({level:1,unitKey:activeQuestionKey(),teacherMode:false,items:[...state.selectedItems]})');
 
@@ -96,7 +96,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   run('state.hp=5;state.hpMax=5;state.pendingEvent=null;startBattle()');
   const correct = run('state.deck[0].correct'), wrongChoice = [0, 1, 2, 3].find(i => i !== correct), wrongText = run(`state.deck[0].choices[${wrongChoice}].text`);
   run(`answer(${wrongChoice})`); await tick(); await tick();
-  run('useItem("lens")');
+  run('useItem("compass")');
   run(`answer(state.deck[0].correct)`);
   await tick();
 
@@ -111,7 +111,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   const { p_code, p_seat, p_session, p_events } = call.body;
   assert.equal(p_code, 'K7QX2M'); assert.equal(p_seat, 3);
   assert.equal(p_session.level, 1); assert.equal(p_session.outcome, 'cleared'); assert.equal(p_session.attempt_no, 1);
-  assert.deepEqual(p_session.items, ['lens']); assert.equal(p_session.questions_answered, 1); assert.equal(p_session.hearts_left, run('state.hp'));
+  assert.deepEqual(p_session.items, ['compass']); assert.equal(p_session.questions_answered, 1); assert.equal(p_session.hearts_left, run('state.hp'));
   assert.ok(!JSON.stringify(calls).includes('小安'), 'player names are never sent');
   const kinds = p_events.map(e => e.kind);
   assert.deepEqual(kinds, ['prediction', 'guide', 'explore', 'item_use', 'judge']);
@@ -123,7 +123,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(byKind.judge.attempts, 2); assert.equal(byKind.judge.first_try, false);
   assert.deepEqual(byKind.judge.wrong_choices.map(w => w.text), [wrongText]);
   assert.equal(typeof byKind.judge.detail.first_answer_ms, 'number');
-  assert.deepEqual(byKind.item_use.detail, { item: 'lens' });
+  assert.deepEqual(byKind.item_use.detail, { item: 'compass' });
   assert.ok(p_events.every(e => e.client_id && e.created_at && !('session_id' in e)));
   assert.equal(run('cloud.pending()'), 0);
 
@@ -155,17 +155,17 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   await tick(); await tick();
   assert.equal(rejected.run('cloud.pending()'), 0, 'rejected batches are dropped instead of retried forever');
 
-  // 老師開放的關卡：沒破前面的關卡也能直接玩，並標示「老師開放」
+  // 加入班級後只能玩老師指定的關卡，故事模式原本解鎖的第一關也必須鎖住
   const mapNodes = () => Object.fromEntries([...markup.matchAll(/<button class="map-level pos-(\d) [^"]*" data-level="\d" (disabled)?[^>]*>[\s\S]*?<small>([^<]*)<\/small>/g)].map(m => [+m[1], { locked: !!m[2], status: m[3] }]));
   const classGame = load();
   classGame.run('state.playerName="小安";state.unlocked=1;state.done=new Set();state.cloudClass={code:"K7QX2M",name:"五年甲班",seat:3,openLevels:[5,7]};showMap()');
   let nodes = mapNodes();
-  assert.equal(nodes[1].locked, false);
-  assert.equal(nodes[2].locked, true, 'levels the teacher did not open still follow the story order');
+  assert.equal(nodes[1].locked, true, 'the default first story level is locked unless the teacher opens it');
+  assert.equal(nodes[2].locked, true, 'levels the teacher did not open stay locked in class mode');
   assert.deepEqual([nodes[5].locked, nodes[5].status], [false, '下一站'], 'the next-step marker moves to the first level the teacher opened');
   assert.match(markup, /map-next[\s\S]*?第 5 關/);
   assert.deepEqual([nodes[7].locked, nodes[7].status], [false, '老師開放']);
-  assert.match(markup, /class-open-note[\s\S]*第 5 關[\s\S]*第 7 關/);
+  assert.match(markup, /class-open-note[\s\S]*第 5 關[\s\S]*第 7 關[\s\S]*只有這些關卡可以進入/);
   // 跳關完成老師開放的關卡，不會順便解鎖中間的關卡，也不會提早出現結局
   classGame.run('state.level=5;showReward()');
   assert.equal(classGame.run('state.unlocked'), 1);
@@ -173,12 +173,21 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.match(markup, /回到行動地圖/);
   classGame.run('state.level=1;showReward()');
   assert.equal(classGame.run('state.unlocked'), 2, 'finishing a level in story order still unlocks the next one');
+  classGame.run('showMap()');
+  nodes = mapNodes();
+  assert.equal(nodes[2].locked, true, 'story progress never opens an unassigned class level');
   classGame.run('state.cloudClass.openLevels=[8];state.level=8;showReward()');
   assert.doesNotMatch(markup, /觀看守護行動結局/, 'the ending only appears after all eight artifacts are restored');
+  classGame.run('state.cloudClass.openLevels=[];showMap()');
+  nodes = mapNodes();
+  assert.equal(Object.values(nodes).every(node => node.locked), true, 'an empty teacher assignment locks every level');
+  assert.match(markup, /目前沒有開放關卡[\s\S]*等待老師開放/);
+  classGame.run('state.level=8;prepare(1)');
+  assert.equal(classGame.run('state.level'), 8, 'prepare cannot bypass the teacher assignment');
   // 沒加入班級時照一般模式
   classGame.run('state.cloudClass=null;state.unlocked=1;showMap()');
   nodes = mapNodes();
   assert.equal(nodes[5].locked, true);
 
-  console.log('Cloud logging: session flow, event fields, retries, key checks and class open levels passed');
+  console.log('Cloud logging: session flow, event fields, retries, key checks and teacher-only class levels passed');
 })().catch(error => { console.error(error); process.exit(1); });

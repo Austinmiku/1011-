@@ -55,7 +55,7 @@ vm.runInContext('state.level=1;state.entry=1;showEventQuiz(randomEvents.find(e=>
 assert.match(app.innerHTML, /data-event-answer=/, 'knowledge event should render choices from the new question bank');
 assert.ok(app.innerHTML.includes(vm.runInContext('levels[0].qs[5].prompt', context)), 'knowledge event should render the source-paper prompt');
 
-vm.runInContext('renderBattle=()=>{};makeDeck=()=>[];state.unlocked=5;state.level=4;state.hp=3;state.selectedItems=["compass"];state.pendingEvent={level:4,effect:{heal:1,hpPenalty:1,shield:1,revive:1,damageReduction:1,removeWrong:2,openingHint:true,extraItem:"lens"}};startBattle()', context);
+vm.runInContext('renderBattle=()=>{};makeDeck=()=>[];state.unlocked=5;state.level=4;state.hp=3;state.selectedItems=["compass"];state.pendingEvent={level:4,effect:{heal:1,hpPenalty:1,shield:1,revive:1,damageReduction:1,removeWrong:2,openingHint:true,extraItem:"kit"}};startBattle()', context);
 assert.equal(vm.runInContext('state.hpMax', context), 5);
 assert.equal(vm.runInContext('state.hp', context), 3);
 assert.equal(vm.runInContext('state.enemy', context), 5);
@@ -66,7 +66,7 @@ assert.equal(vm.runInContext('state.revive', context), 1);
 assert.equal(vm.runInContext('state.damageReduction', context), 1);
 assert.equal(vm.runInContext('state.openingRemoveWrong', context), 2);
 assert.equal(vm.runInContext('state.openingHint', context), true);
-assert.equal(vm.runInContext('state.selectedItems.includes("lens")', context), true);
+assert.equal(vm.runInContext('state.selectedItems.includes("kit")', context), true);
 
 const callResult = vm.runInContext('let eventCalls=0,battleCalls=0;showRandomEvent=()=>eventCalls++;startBattle=()=>battleCalls++;state.level=2;state.eventPlan={2:"repair"};state.eventSeen=new Set();requestBattle();state.eventSeen.add(2);requestBattle();[eventCalls,battleCalls]', context);
 assert.deepEqual(Array.from(callResult), [1, 1]);
