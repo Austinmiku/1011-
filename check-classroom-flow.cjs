@@ -40,13 +40,14 @@ const question = JSON.parse(vm.runInContext('state.level=1;state.entry=1;JSON.st
 for (const field of ['id', 'curriculum', 'type', 'objectiveId', 'claim', 'transfer']) assert.ok(question[field], `missing ${field}`);
 assert.equal(question.choices.length, 4);
 assert.ok(question.choices.every(choice => choice.feedback && choice.misconception));
-assert.equal(question.evidenceOptions.length, 3);
+assert.equal('evidenceOptions' in question, false);
 assert.equal('reasoningOptions' in question, false);
 assert.equal(vm.runInContext('Object.values(questionBank).every(qs=>qs.length===15)', context), true);
 assert.equal(vm.runInContext('Object.keys(questionBank).length', context), 8);
 assert.match(html, /function showPrediction\(/);
 assert.match(html, /function showEvidenceTask\(/);
-assert.match(html, /function showReasonStep\(/);
+assert.doesNotMatch(html, /function showReasonStep\(/);
+assert.doesNotMatch(html, /第 2 步：哪一項知識最能支持目前判斷/);
 assert.doesNotMatch(html, /function showReasonChoice\(/);
 assert.doesNotMatch(html, /選出最合理的答案。答錯會受到攻擊，選項會重新排列/);
 assert.match(html, /function showExitTicket\(/);

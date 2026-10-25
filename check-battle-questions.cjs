@@ -47,8 +47,8 @@ assert.deepEqual(JSON.parse(vm.runInContext('state.teacherMode=false;state.unloc
 assert.equal(vm.runInContext('state.teacherMode=true;state.level=8;loadoutLimit()', context), 1);
 assert.equal(vm.runInContext('state.teacherMode=false;state.level=8;loadoutLimit()', context), 1);
 assert.doesNotMatch(html, /enemyDamage:|bonusDamage:/, 'events must not shorten the five-correct-answer threshold');
-assert.match(html, /\.bt-msgrow\.reason-active\{display:grid/, 'evidence feedback must use a horizontal row above the panel');
-assert.match(html, /row\.classList\.add\("reason-active"\)/, 'evidence step must activate the horizontal layout');
+assert.doesNotMatch(html, /function showReasonStep\(/, 'correct answers must not open a supporting-evidence step');
+assert.doesNotMatch(html, /第 2 步：哪一項知識最能支持目前判斷/, 'supporting-evidence prompt must be removed');
 for (let level = 1; level <= 8; level++) {
   const observedCorrectPositions = new Set();
   for (let entry = 1; entry <= 20; entry++) {
@@ -59,6 +59,7 @@ for (let level = 1; level <= 8; level++) {
     deck.forEach(question => {
       observedCorrectPositions.add(question.correct);
       assert.equal(new Set(question.choices.map(choice => choice.text)).size, 4, `${question.id} options must be distinct`);
+      assert.equal('evidenceOptions' in question, false, `${question.id} battle data must not include the removed evidence step`);
     });
   }
   assert.ok(observedCorrectPositions.size >= 3, `level ${level} should randomize correct answer positions`);
