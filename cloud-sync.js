@@ -198,39 +198,37 @@
       document.querySelector("#cloudBack").onclick = showTeacherMode;
       return;
     }
-    const lastCode = read(TEACHER_CODE_KEY, "") || "";
-    render(`<section class="screen cloud-screen teacher-screen"><div class="eyebrow">教師模式・雲端班級</div><h2>建立班級，查看學生作答</h2>
-      <div class="cloud-grid">
-        <section class="teacher-step"><h3><span class="num">1</span>建立新班級</h3><p>建立後會得到 6 碼班級代碼。請學生在遊戲首頁或任務地圖按「加入班級」，輸入代碼和座號。</p>
-          <form class="cloud-form" id="createForm" novalidate>
-            <label for="newName">班級名稱</label><input class="name-input" id="newName" maxlength="40" placeholder="例如 五年甲班">
-            <label for="newPass">管理密碼（至少 6 個字）</label><input class="name-input" id="newPass" type="password" autocomplete="new-password">
-            <label for="newPass2">再輸入一次管理密碼</label><input class="name-input" id="newPass2" type="password" autocomplete="new-password">
-            <span class="cloud-form-label">開放給學生的關卡（可複選）</span><p class="learn-note">勾選的關卡，學生加入班級後可以直接遊玩，不用先破前面的關卡。之後也可以在全班分析頁面修改。</p>
-            ${levelPicker("newLevels", [])}
-            <p class="name-error" id="createError" role="alert" aria-live="polite"></p>
-            <button class="primary" type="submit" id="createGo">建立班級</button>
-          </form><div id="createResult"></div></section>
-        <section class="teacher-step"><h3><span class="num">2</span>查看作答紀錄</h3><p>輸入班級代碼與管理密碼，就能看到全班與每位學生的作答情況。</p>
-          <form class="cloud-form" id="viewForm" novalidate>
-            <label for="viewCode">班級代碼</label><input class="name-input" id="viewCode" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(lastCode)}">
-            <label for="viewPass">管理密碼</label><input class="name-input" id="viewPass" type="password" autocomplete="current-password">
-            <p class="name-error" id="viewError" role="alert" aria-live="polite"></p>
-            <button class="primary" type="submit" id="viewGo">查看作答紀錄</button>
-          </form></section>
-      </div>
-      <p class="learn-note">管理密碼請自行保存，遺失後無法查回。資料只有座號與作答內容，不含學生姓名；學生要自己按「加入班級」，作答才會被記錄。</p>
-      <button class="secondary" id="cloudBack">返回教師模式</button></section>`);
+    render(`<section class="screen cloud-screen teacher-screen create-class"><div class="eyebrow">教師模式・雲端班級</div><h2>建立班級，查看學生作答</h2>
+      <p class="create-intro">建立班級後會得到 6 碼班級代碼。學生在遊戲首頁或任務地圖按「加入班級」，輸入代碼和座號，作答就會記錄到這個班級。</p>
+      <form class="create-class-form" id="createForm" novalidate>
+        <section class="teacher-step create-step"><h3><span class="num">1</span><label for="newName">班級名稱</label></h3>
+          <input class="name-input" id="newName" maxlength="40" placeholder="例如 範例國小 101班"></section>
+        <section class="teacher-step create-step levels-step"><h3><span class="num">2</span>開放給學生的關卡<small>可複選</small></h3>
+          <p class="learn-note">勾選這陣子上課會用到的關卡，學生不用先破前面的關卡就能直接玩。之後也可以在全班分析頁的「班級設定」修改。</p>
+          ${levelPicker("newLevels", [])}
+          <p class="picked-summary" id="pickedSummary" role="status" aria-live="polite"></p></section>
+        <section class="teacher-step create-step"><h3><span class="num">3</span>管理密碼</h3>
+          <p class="learn-note">查看全班作答、修改開放關卡時要輸入。請自行保存，遺失後無法查回。</p>
+          <div class="password-pair"><label for="newPass">管理密碼（至少 6 個字）<input class="name-input" id="newPass" type="password" autocomplete="new-password"></label><label for="newPass2">再輸入一次<input class="name-input" id="newPass2" type="password" autocomplete="new-password"></label></div></section>
+        <p class="name-error" id="createError" role="alert" aria-live="polite"></p>
+        <button class="primary create-go" type="submit" id="createGo">建立班級</button>
+      </form>
+      <div id="createResult"></div>
+      <p class="learn-note">已經有班級了嗎？回到教師課堂模式，在「全班作答分析」輸入班級代碼與管理密碼，就能查看學生作答。資料只有座號與作答內容，不含學生姓名。</p>
+      <button class="secondary" id="cloudBack">返回教師課堂模式</button></section>`);
     document.querySelector("#cloudBack").onclick = showTeacherMode;
     bindPicker("newLevels");
-    const upper = el => el.oninput = () => { el.value = el.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); };
-    upper(document.querySelector("#viewCode"));
-    document.querySelector("#createForm").onsubmit = async e => {
+    const form = document.querySelector("#createForm"), summary = document.querySelector("#pickedSummary");
+    const showPicked = () => { const list = pickedLevels("newLevels"); summary.textContent = list.length ? `已選 ${list.length} 關：${levelList(list)}` : "還沒有勾選：學生照一般模式一關一關解鎖。"; };
+    form.addEventListener("change", e => { if (e.target.matches("[data-class-level]")) showPicked(); });
+    form.addEventListener("click", e => { if (e.target.matches("[data-pick-all],[data-pick-none]")) setTimeout(showPicked); });
+    showPicked();
+    form.onsubmit = async e => {
       e.preventDefault();
       const name = document.querySelector("#newName").value.trim(), pass = document.querySelector("#newPass").value, pass2 = document.querySelector("#newPass2").value, error = document.querySelector("#createError"), go = document.querySelector("#createGo");
-      if (!name) { error.textContent = "請輸入班級名稱。"; return; }
-      if (pass.length < 6) { error.textContent = "管理密碼至少要 6 個字。"; return; }
-      if (pass !== pass2) { error.textContent = "兩次輸入的管理密碼不一樣。"; return; }
+      if (!name) { error.textContent = "請輸入班級名稱。"; document.querySelector("#newName").focus(); return; }
+      if (pass.length < 6) { error.textContent = "管理密碼至少要 6 個字。"; document.querySelector("#newPass").focus(); return; }
+      if (pass !== pass2) { error.textContent = "兩次輸入的管理密碼不一樣。"; document.querySelector("#newPass2").focus(); return; }
       go.disabled = true; go.textContent = "建立中…"; error.textContent = "";
       try {
         const open = pickedLevels("newLevels");
@@ -240,23 +238,14 @@
         const made = Array.isArray(rows) ? rows[0] : rows, saved = outdated ? [] : cleanLevels(made.open_levels);
         write(TEACHER_CODE_KEY, made.code);
         teacherAuth = { code: made.code, password: pass };
-        document.querySelector("#createResult").innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><span>開放的關卡：${levelList(saved)}</span>${outdated && open.length ? `<span class="name-error">資料庫還是舊版，開放關卡沒有儲存。請在 Supabase 重新執行 supabase/schema.sql。</span>` : ""}<button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div>`;
-        document.querySelector("#createForm").reset();
+        form.hidden = true;
+        const result = document.querySelector("#createResult");
+        result.innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><span>開放的關卡：${levelList(saved)}</span>${outdated && open.length ? `<span class="name-error">資料庫還是舊版，開放關卡沒有儲存。請在 Supabase 重新執行 supabase/schema.sql。</span>` : ""}<div class="row"><button class="secondary" type="button" id="createAnother">再建立一個班級</button><button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div></div>`;
+        result.scrollIntoView?.({ block: "center" });
         document.querySelector("#openNew").onclick = () => showReport();
+        document.querySelector("#createAnother").onclick = showTeacher;
       } catch (err) { error.textContent = `建立失敗：${err.message === "password_too_short" ? "管理密碼太短。" : "目前連不上雲端，請稍後再試。"}`; }
       finally { go.disabled = false; go.textContent = "建立班級"; }
-    };
-    document.querySelector("#viewForm").onsubmit = async e => {
-      e.preventDefault();
-      const code = document.querySelector("#viewCode").value.trim().toUpperCase(), password = document.querySelector("#viewPass").value, error = document.querySelector("#viewError"), go = document.querySelector("#viewGo");
-      if (!CODE_PATTERN.test(code) || !password) { error.textContent = "請輸入 6 碼班級代碼與管理密碼。"; return; }
-      go.disabled = true; go.textContent = "讀取中…"; error.textContent = "";
-      try {
-        await openReport(code, password);
-      } catch (err) {
-        error.textContent = /invalid_class_or_password/.test(err.message) ? "班級代碼或管理密碼不正確。" : "目前連不上雲端，請稍後再試。";
-        go.disabled = false; go.textContent = "查看作答紀錄";
-      }
     };
   }
 
@@ -343,7 +332,7 @@
       ${objectives.length ? `<section class="cloud-section"><h3>學習目標掌握度</h3><p>依首答正確率由低到高排列，排在前面的目標適合優先補強。（目前題庫每個單元只有一個學習目標代碼，所以這裡是以單元為單位；題庫補上更細的目標後會自動分開。）</p><div class="table-scroll"><table class="cloud-table"><thead><tr><th>學習目標</th><th>作答題數</th><th>作答人數</th><th>首答正確率</th></tr></thead><tbody>${objectives.map(o => `<tr><td>${esc(objectiveName(o.objective_id))}</td><td>${o.answered}</td><td>${o.students}</td><td${low(o.first_rate)}>${pct(o.first_rate)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
       ${wrongs.length ? `<section class="cloud-section"><h3>常選錯的選項</h3><div class="table-scroll"><table class="cloud-table"><thead><tr><th>題目</th><th>選錯的選項</th><th>次數</th><th>人數</th></tr></thead><tbody>${wrongs.map(w => `<tr><td><small>${esc(levelName(w.level))}</small><br>${esc(questionText(w.question_id))}</td><td>${esc(w.choice)}</td><td>${w.times}</td><td>${w.students}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
       ${exits.length ? `<section class="cloud-section"><h3>區域學習單（${exits.length} 份）</h3><div class="summary-list">${exits.map(x => `<article class="summary-entry"><div class="meta"><span>${x.seat} 號</span><span>${esc(levelName(x.level))}</span><span>課前：${esc(x.prediction || "未作答")}</span><span>確定程度：${esc(x.confidence || "—")}</span><span>${when(x.created_at)}</span></div>${esc(x.response || "")}</article>`).join("")}</div></section>` : ""}
-      <div class="row no-print" style="margin-top:18px"><button class="secondary" id="cloudBack">返回教師課堂模式</button><button class="secondary" id="cloudManage">建立或切換班級</button></div></section>`);
+      <div class="row no-print" style="margin-top:18px"><button class="secondary" id="cloudBack">返回教師課堂模式</button><button class="secondary" id="cloudManage">建立新班級</button></div></section>`);
     document.querySelector("#cloudBack").onclick = showTeacherMode;
     document.querySelector("#cloudManage").onclick = showTeacher;
     document.querySelector("#reportRefresh").onclick = () => showReport(level);
