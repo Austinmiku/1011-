@@ -37,10 +37,30 @@
   const missingFunction = err => err && err.status === 404;
   const cleanLevels = list => [...new Set((Array.isArray(list) ? list : []).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= 20))].sort((a, b) => a - b);
   const cleanQuestionCount = value => { const count = Number(value); return Number.isInteger(count) && count >= 1 && count <= 15 ? count : 15; };
+  /* 舊版資料庫沒有 question_count 欄位，但 open_levels 可保存 1–20。
+     以不會用到的 9–12 與 20 當作題數標記，讓舊版也能在不同裝置保存 1–15 題；
+     對遊戲與教師頁顯示時一律解碼，只留下真正的第 1–8 關。 */
+  const QUESTION_COUNT_MARKER = 20, QUESTION_COUNT_BITS = [9, 10, 11, 12];
+  const encodeClassLevels = (levels, questionCount) => {
+    const bits = cleanQuestionCount(questionCount) - 1;
+    return [...cleanLevels(levels).filter(n => n <= 8), ...QUESTION_COUNT_BITS.filter((_, i) => bits & (1 << i)), QUESTION_COUNT_MARKER].sort((a, b) => a - b);
+  };
+  const decodeClassSettings = (levels, explicitQuestionCount) => {
+    const stored = cleanLevels(levels), explicit = Number(explicitQuestionCount);
+    const encoded = stored.includes(QUESTION_COUNT_MARKER)
+      ? 1 + QUESTION_COUNT_BITS.reduce((total, value, i) => total + (stored.includes(value) ? (1 << i) : 0), 0)
+      : 15;
+    return {
+      openLevels: stored.filter(n => n <= 8),
+      questionCount: Number.isInteger(explicit) && explicit >= 1 && explicit <= 15 ? explicit : cleanQuestionCount(encoded),
+    };
+  };
   async function classInfo(code) {
     try {
       const info = await rpc("class_info", { p_code: code });
-      return info ? { name: info.name, openLevels: cleanLevels(info.open_levels), questionCount: cleanQuestionCount(info.question_count) } : null;
+      if (!info) return null;
+      const settings = decodeClassSettings(info.open_levels, info.question_count);
+      return { name: info.name, ...settings };
     } catch (err) {
       if (!missingFunction(err)) throw err;
       const name = await rpc("check_class", { p_code: code });
@@ -239,21 +259,21 @@
       if (pass !== pass2) { error.textContent = "兩次輸入的管理密碼不一樣。"; document.querySelector("#newPass2").focus(); return; }
       go.disabled = true; go.textContent = "建立中…"; error.textContent = "";
       try {
-        const open = pickedLevels("newLevels");
+        const open = pickedLevels("newLevels"), storedLevels = encodeClassLevels(open, questionCount);
         let rows, schemaVersion = 4;
-        try { rows = await rpc("create_class", { p_name: name, p_password: pass, p_open_levels: open, p_question_count: questionCount }); }
+        try { rows = await rpc("create_class", { p_name: name, p_password: pass, p_open_levels: storedLevels, p_question_count: questionCount }); }
         catch (err) {
           if (!missingFunction(err)) throw err;
           schemaVersion = 3;
-          try { rows = await rpc("create_class", { p_name: name, p_password: pass, p_open_levels: open }); }
+          try { rows = await rpc("create_class", { p_name: name, p_password: pass, p_open_levels: storedLevels }); }
           catch (legacyErr) { if (!missingFunction(legacyErr)) throw legacyErr; schemaVersion = 2; rows = await rpc("create_class", { p_name: name, p_password: pass }); }
         }
-        const made = Array.isArray(rows) ? rows[0] : rows, saved = schemaVersion === 2 ? [] : cleanLevels(made.open_levels), savedQuestionCount = schemaVersion < 4 ? 15 : cleanQuestionCount(made.question_count);
+        const made = Array.isArray(rows) ? rows[0] : rows, settings = schemaVersion === 2 ? { openLevels: [], questionCount: 15 } : decodeClassSettings(made.open_levels || storedLevels, made.question_count), saved = settings.openLevels, savedQuestionCount = settings.questionCount;
         write(TEACHER_CODE_KEY, made.code);
         teacherAuth = { code: made.code, password: pass };
         form.hidden = true;
         const result = document.querySelector("#createResult");
-        result.innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><span>開放的關卡：${levelList(saved)}</span><span>每關題數：${savedQuestionCount} 題</span>${schemaVersion < 4 ? `<span class="name-error">資料庫還是舊版，題數先使用 15 題${schemaVersion === 2 ? "，開放關卡也未儲存" : ""}。請在 Supabase 重新執行 supabase/schema.sql。</span>` : ""}<div class="row"><button class="secondary" type="button" id="createAnother">再建立一個班級</button><button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div></div>`;
+        result.innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><span>開放的關卡：${levelList(saved)}</span><span>每關題數：${savedQuestionCount} 題</span><div class="row"><button class="secondary" type="button" id="createAnother">再建立一個班級</button><button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div></div>`;
         result.scrollIntoView?.({ block: "center" });
         document.querySelector("#openNew").onclick = () => showReport();
         document.querySelector("#createAnother").onclick = showTeacher;
@@ -323,10 +343,11 @@
   function renderReport(report, level) {
     const students = report.students || [], objectives = report.objectives || [], wrongs = report.wrong_choices || [], exits = report.exits || [];
     const cls = report.class || { name: "", code: teacherAuth.code };
+    const classSettings = decodeClassSettings(cls.open_levels, cls.question_count);
     render(`<section class="screen cloud-screen cloud-report"><div class="eyebrow">教師模式・雲端作答紀錄</div><h2>${esc(cls.name)}<small>班級代碼 ${esc(cls.code)}</small></h2>
-      <details class="class-settings no-print"${cleanLevels(cls.open_levels).length ? "" : " open"}><summary><b>班級設定</b>　每關 ${cleanQuestionCount(cls.question_count)} 題・開放：${esc(levelList(cleanLevels(cls.open_levels)))}</summary>
+      <details class="class-settings no-print"${classSettings.openLevels.length ? "" : " open"}><summary><b>班級設定</b>　每關 ${classSettings.questionCount} 題・開放：${esc(levelList(classSettings.openLevels))}</summary>
         <p class="learn-note">勾選的關卡，加入這個班級的學生可以直接遊玩，不用先破前面的關卡。學生下次打開遊戲就會更新。</p>
-        ${levelPicker("classLevels", cleanLevels(cls.open_levels))}
+        ${levelPicker("classLevels", classSettings.openLevels)}
         <div class="row"><button class="primary" type="button" id="saveLevels">儲存開放的關卡</button><span class="status-inline" id="levelsStatus" role="status" aria-live="polite"></span></div></details>
       <div class="cloud-toolbar no-print"><label for="levelFilter">查看範圍</label><select id="levelFilter"><option value="">全部關卡</option>${levels.map((l, i) => `<option value="${i + 1}"${level === i + 1 ? " selected" : ""}>${esc(levelName(i + 1))}</option>`).join("")}</select>
         <button class="secondary" id="reportRefresh">重新整理</button><button class="secondary" id="exportStudents">匯出學生總覽 CSV</button><button class="secondary" id="exportRaw">匯出原始紀錄 CSV</button><button class="secondary" id="reportPrint">列印</button></div>
@@ -354,10 +375,11 @@
       const b = e.currentTarget, status = document.querySelector("#levelsStatus");
       b.disabled = true; status.textContent = "儲存中…";
       try {
-        const saved = cleanLevels(await rpc("set_class_levels", { p_code: teacherAuth.code, p_password: teacherAuth.password, p_levels: pickedLevels("classLevels") }));
+        const stored = await rpc("set_class_levels", { p_code: teacherAuth.code, p_password: teacherAuth.password, p_levels: encodeClassLevels(pickedLevels("classLevels"), classSettings.questionCount) });
+        const saved = decodeClassSettings(stored, cls.question_count).openLevels;
         status.textContent = `已儲存：${levelList(saved)}`;
         const summary = document.querySelector(".class-settings summary");
-        if (summary) summary.innerHTML = `<b>班級設定</b>　每關 ${cleanQuestionCount(cls.question_count)} 題・開放：${esc(levelList(saved))}`;
+        if (summary) summary.innerHTML = `<b>班級設定</b>　每關 ${classSettings.questionCount} 題・開放：${esc(levelList(saved))}`;
       } catch (err) { status.textContent = missingFunction(err) ? "資料庫還是舊版，請在 Supabase 重新執行 supabase/schema.sql。" : "儲存失敗，請稍後再試。"; }
       finally { b.disabled = false; }
     };
@@ -376,5 +398,5 @@
     };
   }
 
-  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, refreshClass, _rpc: rpc };
+  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, refreshClass, _rpc: rpc, _encodeClassLevels: encodeClassLevels, _decodeClassSettings: decodeClassSettings };
 })();

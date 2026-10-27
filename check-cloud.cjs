@@ -14,6 +14,7 @@ const cloudSource = fs.readFileSync(path.join(__dirname, 'cloud-sync.js'), 'utf8
 const schema = fs.readFileSync(path.join(__dirname, 'supabase', 'schema.sql'), 'utf8');
 assert.match(cloudSource, /id="newQuestionCount"[^>]*min="1"[^>]*max="15"/, 'the create-class page lets teachers choose 1–15 questions');
 assert.match(cloudSource, /p_question_count:\s*questionCount/, 'the chosen question count is sent when creating a class');
+assert.doesNotMatch(cloudSource, /資料庫還是舊版，題數先使用 15 題/, 'the obsolete yellow database warning is removed');
 assert.match(schema, /question_count smallint not null default 15 check \(question_count between 1 and 15\)/, 'the database stores a validated question count');
 
 // 一個寬鬆的假 DOM：沒登記的選擇器都回傳不做事的元素
@@ -71,6 +72,12 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   setupPage.run('cloud.showTeacher()');
   assert.match(markup, /每關題數[\s\S]*id="newQuestionCount"[\s\S]*min="1"[\s\S]*max="15"/, 'the teacher sees the question-count step on the create-class page');
   assert.match(markup, /敵人血量與守護心會等於題數[\s\S]*道具強度/, 'the create-class page explains synchronized health and item scaling');
+
+  for (let count = 1; count <= 15; count++) {
+    const encoded = JSON.parse(setupPage.run(`JSON.stringify(cloud._encodeClassLevels([2, 6], ${count}))`));
+    const decoded = JSON.parse(setupPage.run(`JSON.stringify(cloud._decodeClassSettings(${JSON.stringify(encoded)}, null))`));
+    assert.deepEqual(decoded, { openLevels: [2, 6], questionCount: count }, `legacy class settings round-trip ${count} questions`);
+  }
 
   const game = load();
   const { run, calls } = game;
