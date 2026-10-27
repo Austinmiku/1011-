@@ -313,7 +313,7 @@
   function download(name, text) { const a = document.createElement("a"), url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
   const STUDENT_COLUMNS = [
     ["seat", "座號", v => v], ["levels_cleared", "完成關卡", v => v], ["defeats", "失敗", v => v], ["unfinished", "未完成", v => v],
-    ["judge_first_rate", "首答正確率", pct], ["avg_judge_sec", "平均作答秒數", v => num(v, " 秒")],
+    ["judge_first_rate", "首次回答正確率", pct], ["avg_judge_sec", "平均作答秒數", v => num(v, " 秒")],
     ["quick_wrong", "快速答錯", v => v], ["explore_avg_wrong", "探索平均錯次", v => num(v)], ["hints_used", "提示道具", v => v],
     ["guide_read_rate", "導讀閱讀率", pct], ["exits", "學習單", v => v], ["last_active", "最後作答", when],
   ];
@@ -324,7 +324,7 @@
     const classRate = judged ? Math.round(students.reduce((sum, s) => sum + (Number(s.judge_first_rate) || 0) * (s.judged || 0), 0) / judged) : null;
     const attention = students.map(s => {
       const reasons = [];
-      if (s.judged >= 3 && Number(s.judge_first_rate) < 60) reasons.push(`首答正確率 ${s.judge_first_rate}%`);
+      if (s.judged >= 3 && Number(s.judge_first_rate) < 60) reasons.push(`首次回答正確率 ${s.judge_first_rate}%`);
       if (s.quick_wrong >= 3) reasons.push(`快速答錯 ${s.quick_wrong} 題`);
       if (s.unfinished >= 2) reasons.push(`未完成 ${s.unfinished} 場`);
       if (s.defeats >= 2) reasons.push(`失敗 ${s.defeats} 場`);
@@ -333,11 +333,11 @@
     const weakest = objectives.find(o => o.first_rate !== null && Number(o.first_rate) < 80);
     const topWrong = wrongs[0];
     return `<section class="cloud-section cloud-insights"><h3>分析重點</h3><div class="insight-grid">
-      <article><small>全班首答正確率</small><b${low(classRate)}>${pct(classRate)}</b><span>共 ${students.length} 位學生、${judged} 題作答・完成 ${students.reduce((sum, s) => sum + (s.levels_cleared || 0), 0)} 個關卡</span></article>
+      <article><small>全班首次回答正確率</small><b${low(classRate)}>${pct(classRate)}</b><span>共 ${students.length} 位學生、${judged} 題作答・完成 ${students.reduce((sum, s) => sum + (s.levels_cleared || 0), 0)} 個關卡</span></article>
       <article><small>需要關心的學生</small>${attention.length ? `<ul>${attention.slice(0, 8).map(a => `<li><b>${a.seat} 號</b>：${esc(a.reasons.join("、"))}</li>`).join("")}</ul>${attention.length > 8 ? `<span>另有 ${attention.length - 8} 位，請看下方學生總覽</span>` : ""}` : "<span>目前沒有特別需要關心的學生。</span>"}</article>
-      <article><small>最需要補強</small>${weakest ? `<b>${esc(objectiveName(weakest.objective_id))}</b><span>首答正確率 ${pct(weakest.first_rate)}（${weakest.students} 人作答）</span>` : "<span>各單元首答正確率都在 80% 以上。</span>"}</article>
+      <article><small>最需要補強</small>${weakest ? `<b>${esc(objectiveName(weakest.objective_id))}</b><span>首次回答正確率 ${pct(weakest.first_rate)}（${weakest.students} 人作答）</span>` : "<span>各單元首次回答正確率都在 80% 以上。</span>"}</article>
       <article><small>最多人選錯</small>${topWrong ? `<b>「${esc(topWrong.choice)}」</b><span>${esc(questionText(topWrong.question_id))}<br>${topWrong.students} 人選過、共 ${topWrong.times} 次</span>` : "<span>還沒有答錯紀錄。</span>"}</article>
-    </div><p class="learn-note">「需要關心」的條件：作答 3 題以上且首答正確率低於 60%、快速答錯 3 題以上、未完成或失敗 2 場以上。</p></section>`;
+    </div><p class="learn-note">「需要關心」的條件：作答 3 題以上且首次回答正確率低於 60%、快速答錯 3 題以上、未完成或失敗 2 場以上。</p></section>`;
   }
 
   function renderReport(report, level) {
@@ -355,7 +355,7 @@
       ${students.length ? insights(students, objectives, wrongs) : ""}
       ${students.length ? `<section class="cloud-section"><h3>學生總覽（${students.length} 人）</h3><div class="table-scroll"><table class="cloud-table"><thead><tr>${STUDENT_COLUMNS.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead><tbody>${students.map(s => `<tr>${STUDENT_COLUMNS.map(([k, , f]) => `<td${/rate/.test(k) ? low(s[k]) : ""}>${esc(f(s[k]))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
         <details class="cloud-legend"><summary>指標說明</summary><dl>
-          <dt>首答正確率</dt><dd>證據對決中第一次就判斷正確的比例，最能反映真正的理解。</dd>
+          <dt>首次回答正確率</dt><dd>證據對決中第一次就判斷正確的比例，最能反映真正的理解。</dd>
           <dt>平均作答秒數</dt><dd>從題目出現到判斷正確所花的時間。</dd>
           <dt>快速答錯</dt><dd>4 秒內就作答且答錯的題數，可能是沒讀題就猜。</dd>
           <dt>探索平均錯次</dt><dd>每個調查點答對前平均選錯幾次，反映讀資料、找線索的能力。</dd>
@@ -363,7 +363,7 @@
           <dt>導讀閱讀率</dt><dd>單元導讀實際翻過的頁數比例。</dd>
           <dt>未完成</dt><dd>出發後沒有打到過關或失敗就離開的場次。</dd>
         </dl><p>低於 60% 的比例會以紅色標示。</p></details></section>` : ""}
-      ${objectives.length ? `<section class="cloud-section"><h3>學習目標掌握度</h3><p>依首答正確率由低到高排列，排在前面的目標適合優先補強。（目前題庫每個單元只有一個學習目標代碼，所以這裡是以單元為單位；題庫補上更細的目標後會自動分開。）</p><div class="table-scroll"><table class="cloud-table"><thead><tr><th>學習目標</th><th>作答題數</th><th>作答人數</th><th>首答正確率</th></tr></thead><tbody>${objectives.map(o => `<tr><td>${esc(objectiveName(o.objective_id))}</td><td>${o.answered}</td><td>${o.students}</td><td${low(o.first_rate)}>${pct(o.first_rate)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
+      ${objectives.length ? `<section class="cloud-section"><h3>學習目標掌握度</h3><p>依首次回答正確率由低到高排列，排在前面的目標適合優先補強。（目前題庫每個單元只有一個學習目標代碼，所以這裡是以單元為單位；題庫補上更細的目標後會自動分開。）</p><div class="table-scroll"><table class="cloud-table"><thead><tr><th>學習目標</th><th>作答題數</th><th>作答人數</th><th>首次回答正確率</th></tr></thead><tbody>${objectives.map(o => `<tr><td>${esc(objectiveName(o.objective_id))}</td><td>${o.answered}</td><td>${o.students}</td><td${low(o.first_rate)}>${pct(o.first_rate)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
       ${wrongs.length ? `<section class="cloud-section"><h3>常選錯的選項</h3><div class="table-scroll"><table class="cloud-table"><thead><tr><th>題目</th><th>選錯的選項</th><th>次數</th><th>人數</th></tr></thead><tbody>${wrongs.map(w => `<tr><td><small>${esc(levelName(w.level))}</small><br>${esc(questionText(w.question_id))}</td><td>${esc(w.choice)}</td><td>${w.times}</td><td>${w.students}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
       ${exits.length ? `<section class="cloud-section"><h3>區域學習單（${exits.length} 份）</h3><div class="summary-list">${exits.map(x => `<article class="summary-entry"><div class="meta"><span>${x.seat} 號</span><span>${esc(levelName(x.level))}</span><span>課前：${esc(x.prediction || "未作答")}</span><span>確定程度：${esc(x.confidence || "—")}</span><span>${when(x.created_at)}</span></div>${esc(x.response || "")}</article>`).join("")}</div></section>` : ""}
       <div class="row no-print" style="margin-top:18px"><button class="secondary" id="cloudBack">返回教師課堂模式</button><button class="secondary" id="cloudManage">建立新班級</button></div></section>`);
