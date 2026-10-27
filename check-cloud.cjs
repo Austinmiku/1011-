@@ -10,6 +10,11 @@ assert.match(html, /<script src="cloud-config\.js"><\/script>\s*<script src="clo
 const config = fs.readFileSync(path.join(__dirname, 'cloud-config.js'), 'utf8');
 assert.doesNotMatch(config, /publishableKey: "sb_secret_/, 'cloud-config.js must never contain a secret key');
 assert.match(config, /publishableKey: "(sb_publishable_[\w-]*|eyJ[\w.-]*|)"/, 'cloud-config.js only takes a publishable (or legacy anon) key');
+const cloudSource = fs.readFileSync(path.join(__dirname, 'cloud-sync.js'), 'utf8');
+const schema = fs.readFileSync(path.join(__dirname, 'supabase', 'schema.sql'), 'utf8');
+assert.match(cloudSource, /id="newQuestionCount"[^>]*min="1"[^>]*max="15"/, 'the create-class page lets teachers choose 1–15 questions');
+assert.match(cloudSource, /p_question_count:\s*questionCount/, 'the chosen question count is sent when creating a class');
+assert.match(schema, /question_count smallint not null default 15 check \(question_count between 1 and 15\)/, 'the database stores a validated question count');
 
 // 一個寬鬆的假 DOM：沒登記的選擇器都回傳不做事的元素
 function element(extra = {}) {
@@ -61,6 +66,11 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   // 金鑰檢查：秘密金鑰一律停用
   assert.equal(load({ key: 'sb_secret_abc' }).run('cloud.enabled'), false);
   assert.equal(load({ key: '' }).run('cloud.enabled'), false);
+
+  const setupPage = load();
+  setupPage.run('cloud.showTeacher()');
+  assert.match(markup, /每關題數[\s\S]*id="newQuestionCount"[\s\S]*min="1"[\s\S]*max="15"/, 'the teacher sees the question-count step on the create-class page');
+  assert.match(markup, /敵人血量與守護心會等於題數[\s\S]*道具強度/, 'the create-class page explains synchronized health and item scaling');
 
   const game = load();
   const { run, calls } = game;
