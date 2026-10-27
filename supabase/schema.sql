@@ -5,8 +5,8 @@
 -- 安全設計：
 --   * 三張資料表都開啟 Row Level Security 且不給任何政策，瀏覽器（anon）不能直接讀寫。
 --   * 遊戲只能透過下面的函式存取：
---       create_class      老師建立班級（可同時設定開放給學生的關卡），取得班級代碼
---       class_info        學生加入班級時取得班級名稱與老師開放的關卡
+--       create_class      老師建立班級（可設定開放關卡與每關題數），取得班級代碼
+--       class_info        學生加入班級時取得班級名稱、開放關卡與每關題數
 --       check_class       舊版遊戲使用：確認班級代碼存在
 --       record_events     遊戲寫入作答紀錄（只能新增，不能讀）
 --       set_class_levels  老師用代碼＋管理密碼修改開放的關卡
@@ -27,6 +27,8 @@ create table if not exists public.classes (
 );
 -- 老師開放給學生直接遊玩的關卡（關卡編號 1–8）；空陣列代表照一般模式一關一關解鎖
 alter table public.classes add column if not exists open_levels smallint[] not null default '{}';
+-- 每個單元題庫有 15 題；老師可指定學生每關隨機作答幾題
+alter table public.classes add column if not exists question_count smallint not null default 15 check (question_count between 1 and 15);
 
 -- 一次「出發」到「過關／失敗」算一場
 create table if not exists public.play_sessions (
@@ -84,8 +86,9 @@ revoke all on public.classes, public.play_sessions, public.answer_events from pu
 
 -- ===== 函式 =====
 
--- 舊版的 create_class 只有兩個參數，換成可以設定開放關卡的版本
+-- 移除舊版簽章，換成可以同時設定開放關卡與題數的版本
 drop function if exists public.create_class(text, text);
+drop function if exists public.create_class(text, text, int[]);
 
 -- 整理關卡清單：只留 1–20、去除重複並排序
 create or replace function public.clean_levels(p_levels int[])
@@ -96,9 +99,9 @@ as $$
   from unnest(coalesce(p_levels, '{}')) as x where x between 1 and 20;
 $$;
 
--- 老師建立班級：回傳 6 碼班級代碼（不含容易看錯的 0、O、1、I）與開放的關卡
-create or replace function public.create_class(p_name text, p_password text, p_open_levels int[] default '{}')
-returns table (code text, name text, open_levels smallint[])
+-- 老師建立班級：回傳 6 碼班級代碼（不含容易看錯的 0、O、1、I）、開放關卡與題數
+create or replace function public.create_class(p_name text, p_password text, p_open_levels int[] default '{}', p_question_count int default 15)
+returns table (code text, name text, open_levels smallint[], question_count smallint)
 language plpgsql security definer set search_path = ''
 as $$
 declare
@@ -108,22 +111,23 @@ begin
   p_name := btrim(coalesce(p_name, ''));
   if char_length(p_name) not between 1 and 40 then raise exception 'invalid_name'; end if;
   if char_length(coalesce(p_password, '')) < 6 then raise exception 'password_too_short'; end if;
+  if p_question_count not between 1 and 15 then raise exception 'invalid_question_count'; end if;
   loop
     select string_agg(substr(alphabet, 1 + floor(random() * 32)::int, 1), '') into new_code from generate_series(1, 6);
     exit when not exists (select 1 from public.classes c where c.code = new_code);
   end loop;
-  insert into public.classes (code, name, password_hash, open_levels)
-  values (new_code, p_name, extensions.crypt(p_password, extensions.gen_salt('bf')), public.clean_levels(p_open_levels));
-  return query select c.code, c.name, c.open_levels from public.classes c where c.code = new_code;
+  insert into public.classes (code, name, password_hash, open_levels, question_count)
+  values (new_code, p_name, extensions.crypt(p_password, extensions.gen_salt('bf')), public.clean_levels(p_open_levels), p_question_count);
+  return query select c.code, c.name, c.open_levels, c.question_count from public.classes c where c.code = new_code;
 end;
 $$;
 
--- 學生加入班級：回傳 { name, open_levels }，代碼不存在時回傳 null
+-- 學生加入班級：回傳 { name, open_levels, question_count }，代碼不存在時回傳 null
 create or replace function public.class_info(p_code text)
 returns jsonb
 language sql stable security definer set search_path = ''
 as $$
-  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels))
+  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count)
   from public.classes c where c.code = upper(btrim(p_code));
 $$;
 
@@ -258,7 +262,7 @@ begin
     from e group by seat
   )
   select jsonb_build_object(
-    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels)) from public.classes c where c.code = v_code),
+    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count) from public.classes c where c.code = v_code),
     'level', p_level,
     'students', coalesce((
       select jsonb_agg(to_jsonb(t) order by t.seat) from (
@@ -314,8 +318,8 @@ begin
 end;
 $$;
 
-revoke all on function public.create_class(text, text, int[]), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
+revoke all on function public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
   public.set_class_levels(text, text, int[]), public.verify_class_password(text, text), public.clean_levels(int[]),
   public.class_report(text, text, int), public.class_events(text, text) from public;
-grant execute on function public.create_class(text, text, int[]), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
+grant execute on function public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
   public.set_class_levels(text, text, int[]), public.class_report(text, text, int), public.class_events(text, text) to anon, authenticated;
