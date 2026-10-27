@@ -56,10 +56,11 @@ assert.equal(perfect, 100);
 assert.equal(supported, perfect, 'learning support is reported but never subtracts earned points');
 assert.ok(developing > 0 && developing < perfect);
 assert.match(html, /答錯與學習支援只提供學習參考，不會扣除已獲得的分數/);
+assert.doesNotMatch(html, /<span>\$\{esc\(q\.type\)\}・第/, 'battle questions do not display their source');
 
 vm.runInContext(`
   lockBattleItems=()=>{};makeAnswerShards=()=>{};animFoeAttack=async()=>{};renderBattle=()=>{};
-  state.deck=[{id:"Q1",choices:[{text:"錯",feedback:"再想想",misconception:"迷思",correct:false},{text:"對",feedback:"答對",misconception:"",correct:true}],correct:1}];
+  state.deck=[{id:"Q1",hint:"比較題幹的時間線索。",choices:[{text:"錯",feedback:"正確答案是對",misconception:"迷思",correct:false},{text:"對",feedback:"答對",misconception:"",correct:true}],correct:1}];
   state.qi=0;state.qTrack={qi:0,start:Date.now(),firstMs:null,wrong:[]};state.busy=false;state.hp=1;state.hpMax=15;state.enemyAttack=1;state.shield=0;state.revive=0;state.damageReduction=0;state.battleStats={correct:0,firstCorrect:0,wrong:0,firstMs:[],supports:0};
   answer(0);
 `, context);
@@ -67,5 +68,7 @@ setImmediate(() => {
   assert.equal(vm.runInContext('state.hp', context), 5);
   assert.equal(vm.runInContext('state.battleStats.wrong', context), 1);
   assert.equal(vm.runInContext('state.battleStats.supports', context), 1);
+  assert.match(status.textContent, /比較題幹的時間線索/);
+  assert.doesNotMatch(status.textContent, /正確答案|應選|答案是對/);
   console.log('Configurable classroom assessment, synchronized health, scaled items and additive score passed');
 });
