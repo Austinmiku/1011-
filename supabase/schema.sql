@@ -6,7 +6,8 @@
 --   * 三張資料表都開啟 Row Level Security 且不給任何政策，瀏覽器（anon）不能直接讀寫。
 --   * 遊戲只能透過下面的函式存取：
 --       create_class      老師建立班級（可設定開放關卡與每關題數），取得班級代碼
---       class_info        學生加入班級時取得班級名稱、開放關卡與每關題數
+--       class_info        學生加入班級時取得班級名稱、開放關卡、每關題數與暫停狀態
+--       set_class_paused  老師暫停或恢復同一班級的所有學生畫面
 --       check_class       舊版遊戲使用：確認班級代碼存在
 --       record_events     遊戲寫入作答紀錄（只能新增，不能讀）
 --       set_class_levels  老師用代碼＋管理密碼修改開放的關卡
@@ -29,6 +30,8 @@ create table if not exists public.classes (
 alter table public.classes add column if not exists open_levels smallint[] not null default '{}';
 -- 每個單元題庫有 15 題；老師可指定學生每關隨機作答幾題
 alter table public.classes add column if not exists question_count smallint not null default 15 check (question_count between 1 and 15);
+-- 老師可暫停同一班級代碼下所有學生的遊戲畫面
+alter table public.classes add column if not exists paused boolean not null default false;
 
 -- 一次「出發」到「過關／失敗」算一場
 create table if not exists public.play_sessions (
@@ -122,12 +125,12 @@ begin
 end;
 $$;
 
--- 學生加入班級：回傳 { name, open_levels, question_count }，代碼不存在時回傳 null
+-- 學生加入班級：回傳班級設定與全班暫停狀態，代碼不存在時回傳 null
 create or replace function public.class_info(p_code text)
 returns jsonb
 language sql stable security definer set search_path = ''
 as $$
-  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count)
+  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count, 'paused', c.paused)
   from public.classes c where c.code = upper(btrim(p_code));
 $$;
 
@@ -223,6 +226,20 @@ begin
 end;
 $$;
 
+-- 老師暫停或恢復同一班級代碼下所有學生的畫面
+create or replace function public.set_class_paused(p_code text, p_password text, p_paused boolean)
+returns boolean
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_code text := public.verify_class_password(p_code, p_password);
+  result boolean;
+begin
+  update public.classes c set paused = coalesce(p_paused, false) where c.code = v_code returning c.paused into result;
+  return result;
+end;
+$$;
+
 -- 老師查閱：學生總覽、學習目標掌握度、常錯選項、區域學習單。p_level 為 null 時看全部關卡
 create or replace function public.class_report(p_code text, p_password text, p_level int default null)
 returns jsonb
@@ -262,7 +279,7 @@ begin
     from e group by seat
   )
   select jsonb_build_object(
-    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count) from public.classes c where c.code = v_code),
+    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count, 'paused', c.paused) from public.classes c where c.code = v_code),
     'level', p_level,
     'students', coalesce((
       select jsonb_agg(to_jsonb(t) order by t.seat) from (
@@ -319,7 +336,7 @@ end;
 $$;
 
 revoke all on function public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
-  public.set_class_levels(text, text, int[]), public.verify_class_password(text, text), public.clean_levels(int[]),
+  public.set_class_levels(text, text, int[]), public.set_class_paused(text, text, boolean), public.verify_class_password(text, text), public.clean_levels(int[]),
   public.class_report(text, text, int), public.class_events(text, text) from public;
 grant execute on function public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
-  public.set_class_levels(text, text, int[]), public.class_report(text, text, int), public.class_events(text, text) to anon, authenticated;
+  public.set_class_levels(text, text, int[]), public.set_class_paused(text, text, boolean), public.class_report(text, text, int), public.class_events(text, text) to anon, authenticated;

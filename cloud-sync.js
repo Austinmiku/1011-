@@ -60,11 +60,11 @@
       const info = await rpc("class_info", { p_code: code });
       if (!info) return null;
       const settings = decodeClassSettings(info.open_levels, info.question_count);
-      return { name: info.name, ...settings };
+      return { name: info.name, paused: info.paused === true, ...settings };
     } catch (err) {
       if (!missingFunction(err)) throw err;
       const name = await rpc("check_class", { p_code: code });
-      return name ? { name, openLevels: [], questionCount: 15 } : null;
+      return name ? { name, openLevels: [], questionCount: 15, paused: false } : null;
     }
   }
 
@@ -143,6 +143,7 @@
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush({ keepalive: true }); });
     setTimeout(() => flush(), 4000);
     setTimeout(() => refreshClass(), 1500);
+    if (typeof window.setInterval === "function") window.setInterval(() => refreshClass(), 3000);
   }
   /* 老師可能改了開放的關卡：開遊戲時重新讀一次，地圖正開著就重畫 */
   async function refreshClass() {
@@ -151,9 +152,10 @@
     try {
       const info = await classInfo(m.code);
       if (!info) return;
-      const changed = info.name !== m.name || String(info.openLevels) !== String(m.openLevels || []) || info.questionCount !== cleanQuestionCount(m.questionCount);
-      state.cloudClass = { ...m, name: info.name, openLevels: info.openLevels, questionCount: info.questionCount };
+      const changed = info.name !== m.name || String(info.openLevels) !== String(m.openLevels || []) || info.questionCount !== cleanQuestionCount(m.questionCount) || info.paused !== (m.paused === true);
+      state.cloudClass = { ...m, name: info.name, openLevels: info.openLevels, questionCount: info.questionCount, paused: info.paused };
       save();
+      window.setClassroomPaused?.(info.paused, { teacher: false, className: info.name });
       if (changed && document.querySelector(".adventure-map")) showMap();
     } catch { /* 離線時沿用上次的設定 */ }
   }
@@ -176,7 +178,7 @@
     codeInput.oninput = () => { codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); };
     document.querySelector("#joinBack").onclick = back;
     const leave = document.querySelector("#joinLeave");
-    if (leave) leave.onclick = () => { state.cloudClass = null; save(); toast("已離開班級，之後的作答不會再記錄到雲端。"); back(); };
+    if (leave) leave.onclick = () => { state.cloudClass = null; window.setClassroomPaused?.(false); save(); toast("已離開班級，之後的作答不會再記錄到雲端。"); back(); };
     document.querySelector("#joinForm").onsubmit = async e => {
       e.preventDefault();
       const code = codeInput.value.trim().toUpperCase(), seat = Number(document.querySelector("#joinSeat").value);
@@ -187,7 +189,8 @@
       try {
         const info = await classInfo(code);
         if (!info) { error.textContent = "找不到這個班級代碼，請再跟老師確認。"; return; }
-        state.cloudClass = { code, name: info.name, seat, openLevels: info.openLevels, questionCount: info.questionCount }; save();
+        state.cloudClass = { code, name: info.name, seat, openLevels: info.openLevels, questionCount: info.questionCount, paused: info.paused }; save();
+        window.setClassroomPaused?.(info.paused, { teacher: false, className: info.name });
         toast(info.openLevels.length ? `已加入 ${info.name}・${seat} 號，每關作答 ${info.questionCount} 題` : `已加入 ${info.name}・${seat} 號`);
         back();
       } catch { error.textContent = "目前連不上雲端，請檢查網路後再試一次。"; }
@@ -213,6 +216,26 @@
 
   /* ===== 教師：建立班級與查閱作答 ===== */
   let teacherAuth = null; // { code, password }：只放在記憶體，重新整理頁面後要重新輸入
+  let teacherClassPaused = false, teacherClassName = "";
+  function syncPauseButton() {
+    const button = document.querySelector("#pauseBtn");
+    if (!button) return;
+    button.setAttribute("aria-pressed", String(teacherClassPaused));
+    button.textContent = teacherClassPaused ? "恢復全班" : "教師暫停";
+  }
+  async function toggleClassPause() {
+    if (!teacherAuth) { toast("請先開啟全班作答分析，確認要控制的班級。"); return; }
+    const button = document.querySelector("#pauseBtn"), next = !teacherClassPaused;
+    if (button) button.disabled = true;
+    try {
+      teacherClassPaused = (await rpc("set_class_paused", { p_code: teacherAuth.code, p_password: teacherAuth.password, p_paused: next })) === true;
+      syncPauseButton();
+      window.setClassroomPaused?.(teacherClassPaused, { teacher: true, className: teacherClassName });
+      if (!teacherClassPaused) toast("全班畫面已恢復。");
+    } catch (err) {
+      toast(missingFunction(err) ? "請先在 Supabase 執行最新版 schema.sql，才能使用全班暫停。" : "全班暫停設定失敗，請稍後再試。");
+    } finally { if (button?.isConnected) button.disabled = false; }
+  }
   function showTeacher() {
     if (!enabled) {
       render(`<section class="screen cloud-screen"><div class="eyebrow">教師模式・雲端班級</div><h2>還沒有設定雲端資料庫</h2><p>要記錄學生作答，請先依 README「雲端作答紀錄」建立 Supabase 專案，並在 <code>cloud-config.js</code> 填入網址與 publishable key。</p><button class="secondary" id="cloudBack">返回教師模式</button></section>`);
@@ -271,6 +294,7 @@
         const made = Array.isArray(rows) ? rows[0] : rows, settings = schemaVersion === 2 ? { openLevels: [], questionCount: 15 } : decodeClassSettings(made.open_levels || storedLevels, made.question_count), saved = settings.openLevels, savedQuestionCount = settings.questionCount;
         write(TEACHER_CODE_KEY, made.code);
         teacherAuth = { code: made.code, password: pass };
+        teacherClassPaused = false; teacherClassName = made.name;
         form.hidden = true;
         const result = document.querySelector("#createResult");
         result.innerHTML = `<div class="cloud-code" role="status"><small>${esc(made.name)} 的班級代碼</small><b>${esc(made.code)}</b><span>請寫在黑板上，讓學生按「加入班級」輸入。</span><span>開放的關卡：${levelList(saved)}</span><span>每關題數：${savedQuestionCount} 題</span><div class="row"><button class="secondary" type="button" id="createAnother">再建立一個班級</button><button class="primary" type="button" id="openNew">查看這個班級的作答紀錄</button></div></div>`;
@@ -343,6 +367,7 @@
   function renderReport(report, level) {
     const students = report.students || [], objectives = report.objectives || [], wrongs = report.wrong_choices || [], exits = report.exits || [];
     const cls = report.class || { name: "", code: teacherAuth.code };
+    teacherClassPaused = cls.paused === true; teacherClassName = cls.name || "";
     const classSettings = decodeClassSettings(cls.open_levels, cls.question_count);
     render(`<section class="screen cloud-screen cloud-report"><div class="eyebrow">教師模式・雲端作答紀錄</div><h2>${esc(cls.name)}<small>班級代碼 ${esc(cls.code)}</small></h2>
       <details class="class-settings no-print"${classSettings.openLevels.length ? "" : " open"}><summary><b>班級設定</b>　每關 ${classSettings.questionCount} 題・開放：${esc(levelList(classSettings.openLevels))}</summary>
@@ -368,6 +393,8 @@
       ${exits.length ? `<section class="cloud-section"><h3>區域學習單（${exits.length} 份）</h3><div class="summary-list">${exits.map(x => `<article class="summary-entry"><div class="meta"><span>${x.seat} 號</span><span>${esc(levelName(x.level))}</span><span>課前：${esc(x.prediction || "未作答")}</span><span>確定程度：${esc(x.confidence || "—")}</span><span>${when(x.created_at)}</span></div>${esc(x.response || "")}</article>`).join("")}</div></section>` : ""}
       <div class="row no-print" style="margin-top:18px"><button class="secondary" id="cloudBack">返回教師課堂模式</button><button class="secondary" id="cloudManage">建立新班級</button></div></section>`);
     document.querySelector("#cloudBack").onclick = showTeacherMode;
+    syncPauseButton();
+    window.setClassroomPaused?.(teacherClassPaused, { teacher: true, className: teacherClassName });
     document.querySelector("#cloudManage").onclick = showTeacher;
     document.querySelector("#reportRefresh").onclick = () => showReport(level);
     bindPicker("classLevels");
@@ -398,5 +425,5 @@
     };
   }
 
-  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, refreshClass, _rpc: rpc, _encodeClassLevels: encodeClassLevels, _decodeClassSettings: decodeClassSettings };
+  window.GUARDIAN_CLOUD = { enabled, startSession, log, endSession, flush, pending, classLabel, showJoin, showTeacher, openReport, lastTeacherCode, refreshClass, toggleClassPause, syncPauseButton, _rpc: rpc, _encodeClassLevels: encodeClassLevels, _decodeClassSettings: decodeClassSettings };
 })();

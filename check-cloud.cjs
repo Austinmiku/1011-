@@ -16,6 +16,14 @@ assert.match(cloudSource, /id="newQuestionCount"[^>]*min="1"[^>]*max="15"/, 'the
 assert.match(cloudSource, /p_question_count:\s*questionCount/, 'the chosen question count is sent when creating a class');
 assert.doesNotMatch(cloudSource, /資料庫還是舊版，題數先使用 15 題/, 'the obsolete yellow database warning is removed');
 assert.match(schema, /question_count smallint not null default 15 check \(question_count between 1 and 15\)/, 'the database stores a validated question count');
+assert.match(schema, /add column if not exists paused boolean not null default false/, 'classes store the shared pause state');
+assert.match(schema, /create or replace function public\.set_class_paused\(p_code text, p_password text, p_paused boolean\)/, 'teachers can update the shared pause state');
+assert.match(schema, /'paused', c\.paused/, 'students receive the shared pause state');
+assert.match(cloudSource, /setInterval\(\(\) => refreshClass\(\), 3000\)/, 'students poll their class state for teacher pause changes');
+assert.match(cloudSource, /rpc\("set_class_paused"/, 'the teacher pause button updates the class state');
+assert.match(html, /window\.setClassroomPaused=setClassroomPaused/, 'the game exposes its classroom pause overlay to cloud sync');
+assert.match(html, /等待老師恢復後，畫面會自動繼續/, 'students cannot dismiss the pause overlay themselves');
+assert.match(html, /if\(document\.querySelector\("\.teacher-pause"\)\)return/, 'answer keyboard shortcuts are disabled while paused');
 
 // 一個寬鬆的假 DOM：沒登記的選擇器都回傳不做事的元素
 function element(extra = {}) {
