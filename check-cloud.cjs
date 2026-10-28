@@ -6,7 +6,7 @@ const { webcrypto } = require('node:crypto');
 
 const html = fs.readFileSync(path.join(__dirname, '歷史文物守護行動完整版.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1].split('document.querySelector("#largeBtn").onclick=')[0];
-assert.match(html, /<script src="cloud-config\.js"><\/script>\s*<script src="cloud-sync\.js"><\/script>/, 'cloud scripts load before the game script');
+assert.match(html, /<script src="cloud-config\.js"><\/script>\s*<script src="cloud-sync\.js\?v=\d{8}-\d+"><\/script>/, 'versioned cloud scripts load before the game script');
 const config = fs.readFileSync(path.join(__dirname, 'cloud-config.js'), 'utf8');
 assert.doesNotMatch(config, /publishableKey: "sb_secret_/, 'cloud-config.js must never contain a secret key');
 assert.match(config, /publishableKey: "(sb_publishable_[\w-]*|eyJ[\w.-]*|)"/, 'cloud-config.js only takes a publishable (or legacy anon) key');
