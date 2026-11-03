@@ -6,7 +6,7 @@ const { webcrypto } = require('node:crypto');
 
 const html = fs.readFileSync(path.join(__dirname, '歷史文物守護行動完整版.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1].split('document.querySelector("#largeBtn").onclick=')[0];
-assert.match(html, /<script src="cloud-config\.js"><\/script>\s*<script src="cloud-sync\.js\?v=\d{8}-\d+"><\/script>/, 'versioned cloud scripts load before the game script');
+assert.match(html, /<script src="cloud-config\.js"><\/script>\s*<script src="custom-questions\.js\?v=\d{8}-\d+"><\/script>\s*<script src="cloud-sync\.js\?v=\d{8}-\d+"><\/script>/, 'versioned import and cloud scripts load before the game script');
 const config = fs.readFileSync(path.join(__dirname, 'cloud-config.js'), 'utf8');
 assert.doesNotMatch(config, /publishableKey: "sb_secret_/, 'cloud-config.js must never contain a secret key');
 assert.match(config, /publishableKey: "(sb_publishable_[\w-]*|eyJ[\w.-]*|)"/, 'cloud-config.js only takes a publishable (or legacy anon) key');
@@ -51,13 +51,16 @@ const document = {
   createElement: () => element(),
 };
 
-function load({ key = 'sb_publishable_test', responses = [] } = {}) {
+function load({ key = 'sb_publishable_test', responses = [], customBank = null } = {}) {
   const store = new Map(), calls = [];
   const localStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
   const fetch = async (url, options) => {
     calls.push({ url, options, body: JSON.parse(options.body) });
-    const status = responses.length ? responses.shift() : 200;
-    return { ok: status < 300, status, text: async () => status < 300 ? '1' : JSON.stringify({ message: 'rejected' }) };
+    const response = responses.length ? responses.shift() : 200;
+    if (response === 'network_error') throw new TypeError('Failed to fetch');
+    const status = typeof response === 'number' ? response : response.status;
+    const data = typeof response === 'object' ? response.data : status < 300 ? 1 : {message:'rejected'};
+    return { ok: status < 300, status, text: async () => JSON.stringify(data) };
   };
   const context = vm.createContext({
     document, window: { GUARDIAN_CLOUD_CONFIG: { url: 'https://demo.supabase.co/', publishableKey: key } },
@@ -65,6 +68,7 @@ function load({ key = 'sb_publishable_test', responses = [] } = {}) {
     fetch, crypto: webcrypto, atob, setTimeout: fn => (fn(), 0), clearTimeout() {},
   });
   context.window.document = document;
+  if (customBank) context.window.GUARDIAN_CUSTOM={editorMarkup:()=>'',bindEditor:()=>({getBank:()=>customBank})};
   for (const file of ['question-bank.js', 'curriculum-data.js', 'cloud-sync.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context);
   vm.runInContext(script, context);
   return { run: code => vm.runInContext(code, context), calls, store };
@@ -214,5 +218,34 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   nodes = mapNodes();
   assert.equal(nodes[5].locked, true);
 
+  const makeCreateInputs=()=>{
+    for(const [id,value] of Object.entries({newName:'測試班級',newQuestionCount:'15',newPass:'test-only-123456',newPass2:'test-only-123456',createForm:'',createError:'',createGo:'',createResult:''}))registry['#'+id]=element({value});
+  };
+  const testBank={enabled:true,count:1,version:'a'.repeat(32),questions:[{id:'C-'+('a'.repeat(24))+'-1',prompt:'測試題目',options:['甲','乙','丙','丁'],answerIndex:0}]};
+  for(const [code,status,bank] of [['42725',400,testBank],['PGRST203',300,null]]){
+    makeCreateInputs();const failed=load({customBank:bank,responses:[{status,data:{code,message:'function is not unique'}}]});
+    failed.run('cloud.showTeacher()');await registry['#createForm'].onsubmit({preventDefault(){}});
+    assert.match(registry['#createError'].textContent,/函式版本衝突/);assert.ok(registry['#createError'].textContent.includes(code));
+    assert.match(registry['#createError'].textContent,/fix-class-creation\.sql/);assert.notEqual(registry['#createForm'].hidden,true);
+    assert.equal(registry['#createGo'].disabled,false);assert.equal(failed.calls.length,1,'failed creation must not silently retry and make duplicate classes');
+  }
+  const rpcError=load({responses:[{status:300,data:{code:'PGRST203',message:'ambiguous'}}]});
+  await assert.rejects(rpcError.run('cloud._rpc("create_guardian_class",{})'),err=>err.code==='PGRST203'&&err.status===300);
+  makeCreateInputs();const offline=load({responses:['network_error']});offline.run('cloud.showTeacher()');
+  await registry['#createForm'].onsubmit({preventDefault(){}});assert.match(registry['#createError'].textContent,/NETWORK_ERROR/);
+  makeCreateInputs();const created={code:'K7QX2M',name:'測試班級',open_levels:[10,11,12,20],question_count:15};
+  const repaired=load({responses:[{status:200,data:[created]}]});repaired.run('cloud.showTeacher()');
+  await registry['#createForm'].onsubmit({preventDefault(){}});
+  assert.match(repaired.calls[0].url,/\/create_guardian_class$/);assert.equal(registry['#createForm'].hidden,true);
+  assert.match(registry['#createResult'].innerHTML,/K7QX2M/);
+  makeCreateInputs();const customCreated=load({customBank:testBank,responses:[{status:200,data:created}]});customCreated.run('cloud.showTeacher()');
+  await registry['#createForm'].onsubmit({preventDefault(){}});
+  assert.match(customCreated.calls[0].url,/\/create_custom_class$/);assert.equal(customCreated.calls[0].body.p_bank.count,1);
+  assert.equal(registry['#createForm'].hidden,true);assert.match(registry['#createResult'].innerHTML,/未知地點：1 題/);
+  makeCreateInputs();const compatible=load({responses:[{status:404,data:{code:'PGRST202',message:'missing'}},{status:200,data:[created]}]});compatible.run('cloud.showTeacher()');
+  await registry['#createForm'].onsubmit({preventDefault(){}});
+  assert.match(compatible.calls[1].url,/\/create_class$/);assert.equal(compatible.calls[1].body.p_question_count,15);
+  assert.equal(registry['#createForm'].hidden,true);
   console.log('Cloud logging: session flow, event fields, retries, key checks and teacher-only class levels passed');
+  console.log('Class creation: isolated endpoint, overload diagnostics, network errors, retry safety and old-schema fallback passed');
 })().catch(error => { console.error(error); process.exit(1); });

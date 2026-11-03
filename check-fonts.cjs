@@ -6,7 +6,7 @@ const path = require('node:path');
 // 這裡的文字來源要和 tools/build-game-fonts.py 的 TEXT_FILES 一致。
 const read = file => fs.readFileSync(path.join(__dirname, file), 'utf8');
 const html = read('歷史文物守護行動完整版.html');
-const text = html.replace(/url\("data:font\/woff2;base64,[^"]+"\)/g, '') + ['question-bank.js', 'curriculum-data.js', 'cloud-sync.js'].map(read).join('');
+const text = html.replace(/url\("data:font\/woff2;base64,[^"]+"\)/g, '') + ['question-bank.js', 'curriculum-data.js', 'cloud-sync.js', 'custom-questions.js'].map(read).join('');
 const shown = [...new Set([...text])].filter(c => {
   const code = c.codePointAt(0);
   // emoji 與圖示交給系統的彩色 emoji 字型

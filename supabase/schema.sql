@@ -5,7 +5,8 @@
 -- 安全設計：
 --   * 三張資料表都開啟 Row Level Security 且不給任何政策，瀏覽器（anon）不能直接讀寫。
 --   * 遊戲只能透過下面的函式存取：
---       create_class      老師建立班級（可設定開放關卡與每關題數），取得班級代碼
+--       create_guardian_class 老師建立班級（獨立名稱以避免不同版本的函式衝突）
+--       create_class      保留舊版建班入口
 --       class_info        學生加入班級時取得班級名稱、開放關卡、每關題數與暫停狀態
 --       set_class_paused  老師暫停或恢復同一班級的所有學生畫面
 --       check_class       舊版遊戲使用：確認班級代碼存在
@@ -32,6 +33,8 @@ alter table public.classes add column if not exists open_levels smallint[] not n
 alter table public.classes add column if not exists question_count smallint not null default 15 check (question_count between 1 and 15);
 -- 老師可暫停同一班級代碼下所有學生的遊戲畫面
 alter table public.classes add column if not exists paused boolean not null default false;
+-- 教師自訂題庫與抽題設定；第 9 關獨立於八個課程單元
+alter table public.classes add column if not exists custom_bank jsonb;
 
 -- 一次「出發」到「過關／失敗」算一場
 create table if not exists public.play_sessions (
@@ -81,6 +84,7 @@ create table if not exists public.answer_events (
 create index if not exists answer_events_class_seat_idx on public.answer_events (class_code, seat);
 create index if not exists answer_events_session_idx on public.answer_events (session_id);
 create index if not exists play_sessions_class_seat_idx on public.play_sessions (class_code, seat);
+alter table public.play_sessions add column if not exists assessment jsonb;
 
 alter table public.classes enable row level security;
 alter table public.play_sessions enable row level security;
@@ -103,7 +107,7 @@ as $$
 $$;
 
 -- 老師建立班級：回傳 6 碼班級代碼（不含容易看錯的 0、O、1、I）、開放關卡與題數
-create or replace function public.create_class(p_name text, p_password text, p_open_levels int[] default '{}', p_question_count int default 15)
+create or replace function public.create_guardian_class(p_name text, p_password text, p_open_levels int[] default '{}', p_question_count int default 15)
 returns table (code text, name text, open_levels smallint[], question_count smallint)
 language plpgsql security definer set search_path = ''
 as $$
@@ -125,14 +129,27 @@ begin
 end;
 $$;
 
+-- 保留舊版四參數入口；新版遊戲使用獨立名稱，避免與其他版本的同名函式衝突。
+create or replace function public.create_class(p_name text, p_password text, p_open_levels int[] default '{}', p_question_count int default 15)
+returns table (code text, name text, open_levels smallint[], question_count smallint)
+language sql security definer set search_path = ''
+as $$ select * from public.create_guardian_class(p_name, p_password, p_open_levels, p_question_count); $$;
+
 -- 學生加入班級：回傳班級設定與全班暫停狀態，代碼不存在時回傳 null
 create or replace function public.class_info(p_code text)
 returns jsonb
 language sql stable security definer set search_path = ''
 as $$
-  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count, 'paused', c.paused)
+  select jsonb_build_object('name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count, 'paused', c.paused,
+    'custom_bank', case when c.custom_bank is null then null else c.custom_bank - 'questions' end)
   from public.classes c where c.code = upper(btrim(p_code));
 $$;
+
+-- 題庫版本改變時才下載完整內容，避免三秒一次的暫停檢查重傳整份題庫。
+create or replace function public.class_custom_bank(p_code text)
+returns jsonb
+language sql stable security definer set search_path = ''
+as $$ select custom_bank from public.classes where code = upper(btrim(p_code)); $$;
 
 -- 舊版遊戲使用：存在就回傳班級名稱，否則回傳 null
 create or replace function public.check_class(p_code text)
@@ -182,6 +199,9 @@ begin
   if not exists (select 1 from public.play_sessions s where s.id = v_session and s.class_code = v_code and s.seat = p_seat) then
     raise exception 'session_mismatch';
   end if;
+  if jsonb_typeof(p_session -> 'assessment') = 'object' and octet_length((p_session -> 'assessment')::text) <= 4000 then
+    update public.play_sessions set assessment = p_session -> 'assessment' where id = v_session;
+  end if;
 
   insert into public.answer_events (client_id, session_id, class_code, seat, level, kind, question_id, objective_id, source, first_try, attempts, wrong_choices, duration_ms, detail, created_at)
   select e.client_id, v_session, v_code, p_seat, v_level, e.kind,
@@ -209,6 +229,57 @@ begin
     raise exception 'invalid_class_or_password';
   end if;
   return v_code;
+end;
+$$;
+
+-- 自訂題庫只能由持有管理密碼的老師發布；原始 PDF/Excel 不上傳。
+create or replace function public.set_custom_bank(p_code text, p_password text, p_bank jsonb)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_code text := public.verify_class_password(p_code, p_password);
+  q jsonb;
+  v_count int;
+begin
+  if p_bank is not null and p_bank <> 'null'::jsonb then
+    if jsonb_typeof(p_bank) <> 'object' or octet_length(p_bank::text) > 12000000
+       or coalesce(p_bank ->> 'version', '') !~ '^[a-fA-F0-9]{12,40}$'
+       or jsonb_typeof(p_bank -> 'enabled') is distinct from 'boolean'
+       or jsonb_typeof(p_bank -> 'count') is distinct from 'number'
+       or jsonb_typeof(p_bank -> 'questions') is distinct from 'array' then raise exception 'invalid_custom_bank'; end if;
+    v_count := jsonb_array_length(p_bank -> 'questions');
+    if v_count not between 1 and 2000 or coalesce(p_bank ->> 'count', '') !~ '^[0-9]+$' then raise exception 'invalid_custom_bank'; end if;
+    if (p_bank ->> 'count')::int not between 1 and v_count then raise exception 'invalid_custom_count'; end if;
+    for q in select value from jsonb_array_elements(p_bank -> 'questions') loop
+      if jsonb_typeof(q) <> 'object' or coalesce(q ->> 'id', '') !~ '^C-[a-fA-F0-9]{12,24}-[0-9]+$'
+         or char_length(btrim(coalesce(q ->> 'prompt', ''))) not between 1 and 4000
+         or coalesce(q ->> 'answerIndex', '') !~ '^[0-3]$'
+         or jsonb_typeof(q -> 'answerIndex') is distinct from 'number'
+         or jsonb_typeof(q -> 'options') is distinct from 'array' then raise exception 'invalid_custom_question'; end if;
+      if jsonb_array_length(q -> 'options') <> 4 or
+         (select count(distinct btrim(value #>> '{}')) from jsonb_array_elements(q -> 'options')) <> 4 or
+         exists(select 1 from jsonb_array_elements(q -> 'options') where jsonb_typeof(value) <> 'string' or char_length(btrim(value #>> '{}')) not between 1 and 1000) or
+         char_length(coalesce(q ->> 'explanation', '')) > 4000 then raise exception 'invalid_custom_question'; end if;
+    end loop;
+    if (select count(distinct value ->> 'id') from jsonb_array_elements(p_bank -> 'questions')) <> v_count or
+       (select count(distinct btrim(value ->> 'prompt')) from jsonb_array_elements(p_bank -> 'questions')) <> v_count then raise exception 'duplicate_custom_question'; end if;
+  end if;
+  update public.classes set custom_bank = nullif(p_bank, 'null'::jsonb) where code = v_code;
+  return nullif(p_bank, 'null'::jsonb);
+end;
+$$;
+
+-- 建班及發布題庫在同一個交易內完成，失敗時不留下半套班級。
+create or replace function public.create_custom_class(p_name text, p_password text, p_open_levels int[], p_question_count int, p_bank jsonb)
+returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare made record;
+begin
+  select * into made from public.create_guardian_class(p_name, p_password, p_open_levels, p_question_count);
+  perform public.set_custom_bank(made.code, p_password, p_bank);
+  return to_jsonb(made);
 end;
 $$;
 
@@ -279,7 +350,9 @@ begin
     from e group by seat
   )
   select jsonb_build_object(
-    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count, 'paused', c.paused) from public.classes c where c.code = v_code),
+    'class', (select jsonb_build_object('code', c.code, 'name', c.name, 'open_levels', to_jsonb(c.open_levels), 'question_count', c.question_count, 'paused', c.paused, 'custom_bank', c.custom_bank) from public.classes c where c.code = v_code),
+    'question_texts', coalesce((select jsonb_object_agg(question_id, prompt) from (select question_id, max(detail ->> 'prompt') as prompt from e where kind = 'judge' and detail ? 'prompt' group by question_id) t), '{}'::jsonb),
+    'assessments', coalesce((select jsonb_agg(to_jsonb(t) order by t.ended_at desc) from (select seat, level, attempt_no, assessment, ended_at from s where assessment is not null order by ended_at desc limit 500) t), '[]'::jsonb),
     'level', p_level,
     'students', coalesce((
       select jsonb_agg(to_jsonb(t) order by t.seat) from (
@@ -335,8 +408,12 @@ begin
 end;
 $$;
 
-revoke all on function public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
+revoke all on function public.create_guardian_class(text, text, int[], int), public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
   public.set_class_levels(text, text, int[]), public.set_class_paused(text, text, boolean), public.verify_class_password(text, text), public.clean_levels(int[]),
   public.class_report(text, text, int), public.class_events(text, text) from public;
-grant execute on function public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
+grant execute on function public.create_guardian_class(text, text, int[], int), public.create_class(text, text, int[], int), public.class_info(text), public.check_class(text), public.record_events(text, int, jsonb, jsonb),
   public.set_class_levels(text, text, int[]), public.set_class_paused(text, text, boolean), public.class_report(text, text, int), public.class_events(text, text) to anon, authenticated;
+revoke all on function public.set_custom_bank(text, text, jsonb), public.create_custom_class(text, text, int[], int, jsonb) from public;
+grant execute on function public.set_custom_bank(text, text, jsonb), public.create_custom_class(text, text, int[], int, jsonb) to anon, authenticated;
+revoke all on function public.class_custom_bank(text) from public;
+grant execute on function public.class_custom_bank(text) to anon, authenticated;

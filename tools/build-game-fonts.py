@@ -27,7 +27,7 @@ from fontTools.varLib import instancer
 ROOT = Path(__file__).resolve().parent.parent
 GAME_HTML = ROOT / "歷史文物守護行動完整版.html"
 # 遊戲畫面上的文字來源；新增其他會顯示文字的檔案時，記得加進來（check-fonts.cjs 也要同步）
-TEXT_FILES = ["question-bank.js", "curriculum-data.js", "cloud-sync.js"]
+TEXT_FILES = ["question-bank.js", "curriculum-data.js", "cloud-sync.js", "custom-questions.js"]
 FONT_DIR = ROOT / "assets" / "fonts"
 MANIFEST = FONT_DIR / "game-fonts.json"
 DATA_URI = re.compile(r'url\("data:font/woff2;base64,[^"]+"\)')

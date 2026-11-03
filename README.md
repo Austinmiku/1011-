@@ -10,7 +10,7 @@
 
 遊戲不需要安裝套件或連線到伺服器。
 
-請保留 `question-bank.js`、`curriculum-data.js` 與完整版 HTML 在同一資料夾；遊戲開啟時會先載入題庫與課程對照資料。
+請保留整個遊戲資料夾，以 Chrome 或 Edge 開啟 `index.html`。匯入功能需要同一資料夾的 `custom-questions.js`，以及 `vendor` 裡的 `xlsx.full.min.js`、`pdf.worker.js`、`pdf.js`；不要只複製 HTML。遊戲會先載入這些工具，再供老師選檔使用。
 
 若要從 Excel 重新產生題庫，使用安裝了 `openpyxl` 的 Python 執行：
 
@@ -55,6 +55,8 @@ firebase.cmd deploy --only hosting
 4. 填進 `cloud-config.js` 的 `url` 與 `publishableKey`，再部署一次。
 
 **遊戲更新後**：`schema.sql` 可以重複執行。遊戲新增資料庫功能時（例如班級開放關卡），在 SQL Editor 貼上最新的整份 `schema.sql` 再執行一次即可，既有班級與作答紀錄不會被刪除。
+
+若建班出現 `42725／PGRST203` 函式版本衝突，執行 `supabase/fix-class-creation.sql`，再重新整理遊戲。新版建班入口為 `create_guardian_class`，可與其他版本的 `create_class` 共存。
 
 publishable key 本來就是公開金鑰，可以放在網頁裡；資料表都開啟了 Row Level Security，瀏覽器只能透過 `schema.sql` 裡的函式寫入作答，讀取一定要有班級管理密碼。**不要**把 secret key 或 service_role key 填進 `cloud-config.js`，遊戲偵測到會拒絕使用。
 
@@ -104,6 +106,8 @@ python tools/build-game-fonts.py "放原始字型的資料夾"
 工具會更新 HTML 裡的內嵌字型、`assets/fonts` 的精簡字型檔，以及 `assets/fonts/game-fonts.json`（每套字型收錄的字）。`check-fonts.cjs` 會比對遊戲畫面上的文字，有缺字時列出來。
 
 ## 內容
+
+- 教師可自動轉換 Excel 或文字型 PDF 試卷。每次先檢查選擇題大標題，找到後只匯入該區塊，圖片題與其他題型略過；沒有大題標題的標準題庫仍可直接匯入。辨識題幹、四個選項及答案（含題號前括號答案），預覽後採用或下載標準題庫 Excel，再發布右下帆船的「未知地點」隱藏關卡；題數獨立設定、血量上限 10、道具最高三階，結束顯示分數且可在教師後台查看。[完整操作說明](docs/老師自訂題庫操作說明.md)。首次使用需在 Supabase 執行新版 `supabase/schema.sql`。
 
 - 八個完整關卡與連續劇情，每關名稱對應五上或五下第 1～4 單元
 - 每次進關隨機排列探索點、探索線索、題目及答案

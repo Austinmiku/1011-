@@ -1,0 +1,42 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const XLSX = require('./vendor/xlsx.full.min.js');
+const source = fs.readFileSync(path.join(__dirname, 'custom-questions.js'), 'utf8');
+const workbook = fs.readFileSync(path.join(__dirname, 'templates/老師自訂題庫範本.xlsx'));
+const excel = {name:'題庫.xlsx',size:workbook.length,arrayBuffer:async()=>workbook};
+const pdfText = ['1. Where is Taiwan?', 'A. Asia B. Europe C. Africa D. America', 'Answer: A'];
+const pdfLib = {getDocument(){return {promise:Promise.resolve({numPages:1,getPage:async()=>({getTextContent:async()=>({items:pdfText.map((str,i)=>({str,transform:[1,0,0,1,0,700-i*20],hasEOL:true}))}),cleanup(){}})}),destroy:async()=>{}}}};
+function environment(ready) {
+  let calls=0,request='';
+  const root=ready?{XLSX,pdfjsLib:pdfLib,pdfjsWorker:{WorkerMessageHandler:{}}}:{};
+  const document={currentScript:{src:'file:///C:/game/custom-questions.js?v=2'},baseURI:'https://preview.invalid/page/',createElement:()=>({remove(){}}),head:{append(node){calls++;request=node.src;queueMicrotask(()=>{root.XLSX=XLSX;node.onload()});}}};
+  const context=vm.createContext({window:root,document,URL,Uint8Array,console});
+  vm.runInContext(source,context);
+  return {context,root,document,api:root.GUARDIAN_CUSTOM,calls:()=>calls,request:()=>request};
+}
+(async()=>{
+  const ready=environment(true);
+  ready.document.head.append=()=>{throw Error('Dynamic loading is blocked in this preview')};
+  assert.equal((await ready.api.readFile(excel)).questions.length,1);
+  assert.equal((await ready.api.readFile({name:'題庫.pdf',size:12,arrayBuffer:async()=>new Uint8Array(12)})).questions.length,1);
+  ready.root.pdfjsLib={getDocument(){return {promise:Promise.resolve({numPages:1,getPage:async()=>({getTextContent:async()=>({items:[['某校試卷',760],['(1) 1 3 . 前一題？',700],['①甲②乙③丙④丁',680],['請',120],['再',108],['仔',96],['細',84],['檢',72],['查',60],['!',48],['(2)14. 後一題？',620],['①春②夏③秋④冬',600]].map(([str,y])=>({str,transform:[1,0,0,1,0,y],height:12,hasEOL:true}))}),cleanup(){}})}),destroy:async()=>{}}}};
+  const spaced=await ready.api.readFile({name:'跨頁題號.pdf',size:12,arrayBuffer:async()=>new Uint8Array(12)});
+  assert.equal(spaced.questions.length,2,'a spaced question number at the page top must survive header filtering');
+  assert.equal(spaced.questions[0].answerIndex,0);assert.doesNotMatch(spaced.questions[0].prompt,/某校試卷/);
+  assert.equal(spaced.questions[0].options[3],'丁','vertical page reminders must not leak into an option');
+  ready.root.pdfjsLib={getDocument(){return {promise:Promise.resolve({numPages:1,getPage:async()=>({getTextContent:async()=>({items:[['選擇題',700],['(1)1. 選擇區塊',650],['①甲②乙③丙④丁',630],['閱讀題組',600],['(2)1. 閱讀區塊',550],['①春②夏③秋④冬',530]].map(([str,y])=>({str,transform:[1,0,0,1,0,y],height:12,hasEOL:true}))}),cleanup(){}})}),destroy:async()=>{}}}};
+  const titled=await ready.api.readFile({name:'獨立標題.pdf',size:12,arrayBuffer:async()=>new Uint8Array(12)});
+  assert.equal(titled.questions.length,1,'standalone major titles must survive page header filtering');assert.equal(titled.questions[0].prompt,'選擇區塊');
+  assert.equal(ready.calls(),0,'preloaded tools must work even when dynamic script loading is blocked');
+  const fallback=environment(false);
+  assert.equal((await fallback.api.readFile(excel)).questions.length,1);
+  assert.equal(fallback.request(),'file:///C:/game/vendor/xlsx.full.min.js','fallback paths must follow the importer, not the preview page');
+  const failed=environment(false);
+  failed.document.head.append=node=>queueMicrotask(()=>node.onerror());
+  await assert.rejects(failed.api.readFile(excel),/vendor\/xlsx.full.min.js/);
+  failed.document.head.append=node=>queueMicrotask(()=>{failed.root.XLSX=XLSX;node.onload()});
+  assert.equal((await failed.api.readFile(excel)).questions.length,1,'retry should recover after a missing tool becomes available');
+  console.log('Excel/PDF preload survives blocked dynamic scripts; fallback paths, errors and retries passed');
+})().catch(err=>{console.error(err);process.exit(1)});
