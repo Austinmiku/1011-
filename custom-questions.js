@@ -2,8 +2,11 @@
 /* Teacher files are parsed locally. Only reviewed, valid four-choice questions are published. */
 (function (root) {
   const MAX_QUESTIONS = 2000, MAX_BYTES = 20 * 1024 * 1024;
-  // Some teacher PDFs expose Wingdings circled digits as private-use characters.
-  const normalizeMarks = value => String(value ?? "").replace(/[\uF081-\uF089]/g, c => String.fromCodePoint(c.charCodeAt(0) - 0xF081 + 9312)).replace(/\uF0B0/g, "°");
+  // The same circled digits can be exported as Wingdings or dingbat glyphs.
+  const normalizeMarks = value => String(value ?? "")
+    .replace(/[\uF081-\uF089]/g, c => String.fromCodePoint(c.charCodeAt(0) - 0xF081 + 9312))
+    .replace(/[\u2780-\u2788]/g, c => String.fromCodePoint(c.charCodeAt(0) - 0x2780 + 9312))
+    .replace(/\uF0B0/g, "°");
   const text = value => normalizeMarks(value).normalize("NFKC").trim();
   const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const answerIndex = value => {
@@ -16,6 +19,7 @@
     if (!raw || typeof raw !== "object") return { reason: "題目格式不符" };
     const prompt = text(raw.prompt), options = Array.isArray(raw.options) ? raw.options.map(text) : [];
     if (raw.type && !/^(?:單選題?|選擇題?|四選一|single|choice)$/i.test(text(raw.type))) return { reason: "不是四選一單選題" };
+    if (raw.answerConflict) return { reason: "同一題的答案標示不一致" };
     if (raw.requiresImage === true) return { reason: "題目需要圖片或圖表，目前僅匯入純文字題" };
     if (!prompt || prompt.length > 4000) return { reason: "題幹空白或過長" };
     if (options.length !== 4 || options.some(v => !v || v.length > 1000) || new Set(options).size !== 4) return { reason: "選項須恰好四個，且不可空白或重複" };
@@ -45,22 +49,30 @@
   function majorHeading(value) {
     const line = documentText(value);
     if (line.includes("\n")) return null;
-    const compact = line.replace(/[ \t]/g, ""), numbered = compact.match(/^[一二三四五六七八九十]+[、.](.+)$/);
+    const compact = line.replace(/[ \t]/g, "").replace(/^[◎◆●\u203B]/, ""), numbered = compact.match(/^[一二三四五六七八九十]+[、.](.+)$/);
     const title = numbered ? numbered[1] : compact.replace(/^\d+[、.]/, "");
-    if (!numbered && !/^(?:選擇題|單選題|四選一|是非題|判斷題|問答題|簡答題|填充題|配合題|勾選題|複選題|多選題|閱讀題組|閱讀測驗|題組)(?:[(:：、,]|$)/.test(title)) return null;
-    return {title,choice:/^(?:選擇題|單選題|四選一)(?:[(:：、,]|$)/.test(title) && !/複選|多選|勾選/.test(title)};
+    const choiceTitle = /^(?:選擇題|單選題|四選一|單題)(?:[(:：、,]|$)/.test(title);
+    if (!numbered && !choiceTitle && !/^(?:是非題|判斷題|問答題|簡答題|填充題|配合題|勾選題|複選題|多選題|閱讀題組|閱讀測驗|題組題?)(?:[(:：、,]|$)/.test(title)) return null;
+    return { title, choice: choiceTitle && !/複選|多選|勾選/.test(title) };
   }
-  const questionNeedsImage = prompt => /下圖|上圖|附圖|如圖|圖片中|圖表中|圖中|哪(?:一)?個符號表示/.test(text(prompt).replace(/\s/g, ""));
+  const questionNeedsImage = prompt => /[上下左右][圖表]|附圖|如圖|圖片中|圖中|[圖表]\([一二三四五六七八九十\d]+\)|圖表(?:中|後|的解讀)|看圖|依(?:據|照)?圖表|哪(?:一)?個符號表示/.test(text(prompt).replace(/\s/g, ""));
   function answerKeys(value) {
-    const keys = new Map(), add = (number, answer) => { const n = String(Number(number)), a = text(answer); keys.set(n, keys.has(n) && keys.get(n) !== a ? "" : a); };
-    const normalized = text(value);
-    const lines = normalized.split("\n"), matrixLines = new Set();
+    const keys = new Map(), lines = text(value).split("\n");
+    const add = (number, answer) => {
+      const key = String(Number(number)), mark = String.fromCharCode(65 + answerIndex(answer));
+      keys.set(key, keys.has(key) && keys.get(key) !== mark ? "" : mark);
+    };
+    const pair = /(\d{1,4})(?:[ \t]*[.、:)\-][ \t]*|[ \t]+(?=\(?[A-D]))\(?([A-D1-4])\)?(?:[ \t,;]+|$)/gi;
     lines.forEach((line, i) => {
-      if (!/^\s*(?:題號|題次|編號)\s/.test(line) || !/^\s*(?:答案|解答)\s/.test(lines[i + 1] || "")) return;
-      const numbers = line.replace(/^\s*\S+\s*/, "").trim().split(/\s+/), answers = lines[i + 1].replace(/^\s*\S+\s*/, "").trim().split(/\s+/);
-      if (numbers.length === answers.length && numbers.every(n => /^\d+$/.test(n)) && answers.every(a => answerIndex(a) >= 0)) {numbers.forEach((n, j) => add(n, answers[j]));matrixLines.add(i);matrixLines.add(i+1);}
+      const numbers = line.trim().match(/^(?:題號|題次|編號)[ \t]+(.+)$/)?.[1]?.split(/\s+/);
+      const answers = lines[i + 1]?.trim().match(/^(?:答案|解答)[ \t]+(.+)$/)?.[1]?.split(/\s+/);
+      if (numbers && answers && numbers.length === answers.length && numbers.every(n => /^\d+$/.test(n)) && answers.every(a => answerIndex(a) >= 0)) {
+        numbers.forEach((n, j) => add(n, answers[j]));
+      }
+      if (!line.trim().replace(pair, "").trim()) {
+        for (const match of line.trim().matchAll(pair)) add(match[1], match[2]);
+      }
     });
-    for (const m of lines.filter((_,i)=>!matrixLines.has(i)).join("\n").matchAll(/(?:^|[\s,，;；])([0-9]{1,4})\s*[.、:：)）\-]?\s*[（(]?([A-D1-4])[)）]?(?=\s|$|[,，;；])/gi)) add(m[1], m[2].toUpperCase());
     return keys;
   }
   function splitChoices(value, explicitAnswer = "") {
@@ -79,15 +91,15 @@
     }
     const order = labels.map(m => m[3] ? m[3].codePointAt(0) - 9312 : /[A-E]/.test(m[1] || m[2]) ? (m[1] || m[2]).charCodeAt(0) - 65 : Number(m[1]) - 1);
     const options = labels.map((label, n) => tidy(body.slice(label.index + label[0].length, labels[n + 1]?.index ?? body.length)).replace(/。$/,""));
-    let answer = explicitAnswer || inline;
-    if (explicitAnswer && inline && answerIndex(explicitAnswer) !== answerIndex(inline)) answer = "";
-    return {prompt:tidy(body.slice(0, labels[0]?.index ?? body.length)).replace(outer ? /[（(]\s*$/ : /$^/, ""), options:order.join() === "0,1,2,3" ? options : [], answer, explanation:tidy(explanation)};
+    const answer = explicitAnswer || inline;
+    const answerConflict = Boolean(explicitAnswer && inline && answerIndex(explicitAnswer) !== answerIndex(inline));
+    return {prompt:tidy(body.slice(0, labels[0]?.index ?? body.length)).replace(outer ? /[（(]\s*$/ : /$^/, ""), options:order.join() === "0,1,2,3" ? options : [], answer, answerConflict, explanation:tidy(explanation)};
   }
   function documentCandidates(value, source = "PDF") {
     const content = documentText(value).split("\n").map(line => {const heading=majorHeading(line);return heading ? `一、${heading.title}` : line}).join("\n");
     const section = content.search(/(?:^|\n)[ \t]*(?:參考答案|參考解答|選擇題答案|答案表|解答表|answer key|答案|解答)\s*[:：]?[ \t]*(?=\n|$)/i);
     const body = section < 0 ? content : content.slice(0, section), keys = answerKeys(section < 0 ? "" : content.slice(section));
-    const pattern = /(?:^|\n)[ \t]*(?:([一二三四五六七八九十]+[ \t]*[、.][^\n]*)|(?:[（(]\s*([A-D1-4①②③④○✕✓✗×OX]?)\s*[)）]\s*)?(?:([0-9](?:[ \t]*[0-9]){0,3})\s*[.、)]|第\s*([0-9](?:[ \t]*[0-9]){0,3})\s*題)[ \t]*(?:[（(]\s*([A-D1-4①②③④])\s*[)）]\s*)?)/g;
+    const pattern = /(?:^|\n)[ \t]*(?:([一二三四五六七八九十]+[ \t]*[、.][^\n]*)|(?:[（(][ \t]*([A-D1-4①②③④○✕✓✗×OX]?)[ \t]*[)）][ \t]*)?(?:([0-9](?:[ \t]*[0-9]){0,3})[ \t]*[.、)]|第[ \t]*([0-9](?:[ \t]*[0-9]){0,3})[ \t]*題)[ \t]*(?:[（(][ \t]*([A-D1-4①②③④]?)[ \t]*[)）][ \t]*)?)/g;
     const tokens = [...body.matchAll(pattern)], candidates = [], counts = new Map();
     // A paper with major headings only imports the explicit single-choice section.
     let inChoices = !tokens.some(t => t[1]);
@@ -102,12 +114,59 @@
       const number = (token[3] || token[4]).replace(/[ \t]/g, ""), answer = token[2] || token[5] || (counts.get(number) === 1 ? keys.get(String(Number(number))) : "") || "";
       const question = splitChoices(body.slice(token.index + token[0].length, tokens[i + 1]?.index ?? body.length), answer);
       const requiresImage = questionNeedsImage(question.prompt);
-      candidates.push({...question,requiresImage,type:selected[i] ? "" : "不支援題型",source:`${source} 第 ${number} 題`});
+      candidates.push({...question,number:Number(number),requiresImage,type:selected[i] ? "" : "不支援題型",source:`${source} 第 ${number} 題`});
     });
     return candidates;
   }
-  function fromPdfText(value) {
-    const result = collect(documentCandidates(value)); result.formats = ["文字試卷自動分題"];
+  const signature = q => JSON.stringify([q.prompt, ...q.options].map(s => text(s).replace(/\s+/g, "")));
+  function detachedKeys(value) {
+    const lines = documentText(value).split("\n");
+    // A row with multiple unlabelled answers signals a multi-subject grid.
+    if (lines.some(line => /^\s*\d{1,4}[ \t]+(?:[A-D][ \t]+)+[A-D][ \t]*$/i.test(line))) return new Map();
+    let inChoices = !lines.some(line => majorHeading(line)?.choice);
+    const keyLines = lines.map(line => {
+      const heading = majorHeading(line);
+      if (heading) { inChoices = heading.choice; return ""; }
+      return inChoices ? line : "";
+    });
+    return answerKeys(keyLines.join("\n"));
+  }
+  function applyAnswerSheet(candidates, answerText) {
+    const filled = new Map(), numbers = new Map();
+    for (const candidate of documentCandidates(answerText, "答案卷")) {
+      const { question } = validate(candidate);
+      if (!question) continue;
+      const key = signature(question), index = question.answerIndex;
+      filled.set(key, filled.has(key) && filled.get(key) !== index ? -1 : index);
+    }
+    const keys = filled.size ? new Map() : detachedKeys(answerText);
+    for (const candidate of candidates) {
+      if (!candidate.type) numbers.set(candidate.number, (numbers.get(candidate.number) || 0) + 1);
+    }
+    let matched = 0;
+    for (const candidate of candidates) {
+      if (candidate.type || candidate.options.length !== 4 || candidate.requiresImage || candidate.answerConflict) continue;
+      const fromPaper = filled.get(signature(candidate));
+      const fromTable = numbers.get(candidate.number) === 1 ? keys.get(String(candidate.number)) : undefined;
+      if (fromPaper === -1 || fromTable === "") { candidate.answerConflict = true; continue; }
+      const index = fromPaper ?? answerIndex(fromTable);
+      if (index < 0) continue;
+      matched++;
+      const existing = answerIndex(candidate.answer);
+      if (existing >= 0 && existing !== index) candidate.answerConflict = true;
+      else candidate.answerIndex = index;
+    }
+    return matched;
+  }
+  function fromPdfText(value, answerText = "") {
+    const candidates = documentCandidates(value);
+    const matched = answerText ? applyAnswerSheet(candidates, answerText) : 0;
+    const result = collect(candidates);
+    result.formats = ["文字試卷自動分題"];
+    if (matched) result.formats.push("搭配答案卷核對");
+    else if (answerText && !result.skipped.some(q => q.reason.includes("不一致"))) {
+      result.skipped.unshift({ source: "答案卷", reason: "未配對到答案。請使用同一份試卷的已填答案版，或單科題號答案表。" });
+    }
     if (documentText(value).split("\n").some(line=>majorHeading(line)?.choice)) result.formats.unshift("優先擷取選擇題大題");
     if (!result.questions.length && !result.skipped.length) result.skipped.push({source:"PDF",reason:"無法辨識題號與選項；請提供可選取文字的試卷或 Excel"});
     return result;
@@ -179,49 +238,61 @@
     }));
     return loading.get(src);
   }
-  async function readFile(file) {
-    if (!file || file.size > MAX_BYTES) throw new Error("請選擇 20 MB 以內的 PDF 或 Excel 檔案。");
+  async function readPdfText(file, label = "PDF") {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    if (/\.pdf$/i.test(file.name)) {
-      await script("vendor/pdf.worker.js"); await script("vendor/pdf.js");
-      const task = root.pdfjsLib.getDocument({ data: bytes, isEvalSupported: false, useSystemFonts: true, stopAtErrors: true });
-      let pdf;
-      try {
-        pdf = await task.promise;
-        if (pdf.numPages > 200) throw new Error("PDF 超過 200 頁，請拆開後匯入。");
-        const pages = [];
-        for (let n = 1; n <= pdf.numPages; n++) {
-          const page = await pdf.getPage(n), data = await page.getTextContent();
-          let line = "", lastY = null, height = 12, lines = [];
-          const flushLine = () => {if(line.trim())lines.push({text:line,y:lastY,height});line="";lastY=null;};
-          for (const item of data.items) {
-            if (typeof item.str !== "string") continue;
-            const y = item.transform[5];
-            if (lastY !== null && Math.abs(y - lastY) > 3 && line.trim()) flushLine();
-            line += item.str + " "; lastY = y; height = item.height || 12;
-            if (item.hasEOL) flushLine();
-          }
-          flushLine();
-          const starts = lines.filter(row=>majorHeading(row.text) || /^\s*(?:\([A-D1-4①②③④○✕✓✗×OX\s]*\)\s*)?(?:\d(?:[ \t]*\d){0,3}[ \t]*[.、)]|第[ \t]*\d(?:[ \t]*\d){0,3}[ \t]*題)/.test(documentText(row.text)));
-          const top = starts.length ? Math.max(...starts.map(row=>row.y+row.height)) : Infinity;
-          const pageText = lines.filter(row=>row.y<=top&&!/^(?:\d{1,3}|第\d{1,3}頁|翻面繼續作答|繼續寫第[一二三四五六七八九十\d]+頁|請(?:再)?仔細檢查(?:答案)?[!！。]?|背面還有題目[喔哦]?[!！。]?|還有一張加油[!！。]?)$/.test(tidy(row.text).replace(/\s/g,""))).map(row=>row.text).join("\n");
-          // Vertical page reminders can be extracted as one character per line.
-          pages.push(pageText.replace(/(?:^|\n)[ \t]*請\s*(?:再\s*)?仔\s*細\s*檢\s*查(?:\s*答\s*案)?\s*[!！。]?[ \t]*(?=\n|$)/g,"\n")); page.cleanup();
+    await script("vendor/pdf.worker.js"); await script("vendor/pdf.js");
+    const task = root.pdfjsLib.getDocument({ data: bytes, isEvalSupported: false, useSystemFonts: true, stopAtErrors: true });
+    let pdf;
+    try {
+      pdf = await task.promise;
+      if (pdf.numPages > 200) throw new Error("PDF 超過 200 頁，請拆開後匯入。");
+      const pages = [];
+      for (let n = 1; n <= pdf.numPages; n++) {
+        const page = await pdf.getPage(n), data = await page.getTextContent();
+        let line = "", lastY = null, height = 12, lines = [];
+        const flushLine = () => {if(line.trim())lines.push({text:line,y:lastY,height});line="";lastY=null;};
+        for (const item of data.items) {
+          if (typeof item.str !== "string") continue;
+          const y = item.transform[5];
+          if (lastY !== null && Math.abs(y - lastY) > 3 && line.trim()) flushLine();
+          line += item.str + " "; lastY = y; height = item.height || 12;
+          if (item.hasEOL) flushLine();
         }
-        const all = pages.join("\n");
-        if (all.replace(/\s/g, "").length < 15) throw new Error("這份 PDF 沒有可讀取文字，可能是掃描圖片。請改用 Excel 範本。");
-        return fromPdfText(all);
-      } finally { await task.destroy(); }
+        flushLine();
+        const starts = lines.filter(row=>majorHeading(row.text) || /^\s*(?:\([A-D1-4①②③④○✕✓✗×OX\s]*\)\s*)?(?:\d(?:[ \t]*\d){0,3}[ \t]*[.、)]|第[ \t]*\d(?:[ \t]*\d){0,3}[ \t]*題)/.test(documentText(row.text)));
+        const top = starts.length ? Math.max(...starts.map(row=>row.y+row.height)) : Infinity;
+        const pageText = lines.filter(row=>row.y<=top&&!/^(?:\d{1,3}|第\d{1,3}頁|翻面繼續作答|繼續寫第[一二三四五六七八九十\d]+頁|請(?:再)?仔細檢查(?:答案)?[!！。]?|背面還有題目[喔哦]?[!！。]?|還有一張加油[!！。]?)$/.test(tidy(row.text).replace(/\s/g,""))).map(row=>row.text).join("\n");
+        // Vertical page reminders can be extracted as one character per line.
+        const compact = pageText.replace(/\s/g, "");
+        const cover = n === 1 && pdf.numPages > 1 && /方格內填寫/.test(compact) && /翻頁作答/.test(compact);
+        if (!cover) pages.push(pageText.replace(/(?:^|\n)[ \t]*請\s*(?:再\s*)?仔\s*細\s*檢\s*查(?:\s*答\s*案)?\s*[!！。]?[ \t]*(?=\n|$)/g,"\n"));
+        page.cleanup();
+      }
+      const all = pages.join("\n");
+      if (all.replace(/\s/g, "").length < 15) throw new Error(`這份 ${label} 沒有可讀取文字，可能是掃描圖片。請改用文字 PDF 或 Excel 範本。`);
+      return all;
+    } finally { await task.destroy(); }
+  }
+  async function readFile(file, answerFile = null) {
+    if (!file || file.size > MAX_BYTES) throw new Error("請選擇 20 MB 以內的 PDF 或 Excel 檔案。");
+    if (answerFile && (!/\.pdf$/i.test(file.name) || !/\.pdf$/i.test(answerFile.name) || answerFile.size > MAX_BYTES)) {
+      throw new Error("獨立答案卷請搭配 PDF 題目卷使用，每個檔案最多 20 MB。");
+    }
+    if (/\.pdf$/i.test(file.name)) {
+      const paper = await readPdfText(file);
+      const answers = answerFile ? await readPdfText(answerFile, "答案卷") : "";
+      return fromPdfText(paper, answers);
     }
     if (!/\.(xlsx|xls)$/i.test(file.name)) throw new Error("目前支援 .xlsx、.xls 與文字型 .pdf。");
+    const bytes = new Uint8Array(await file.arrayBuffer());
     await script("vendor/xlsx.full.min.js");
     const workbook = root.XLSX.read(bytes, { type: "array", sheetRows: MAX_QUESTIONS + 100, cellHTML: false, cellFormula: false });
     if (workbook.SheetNames.some(name => workbook.Sheets[name]["!fullref"])) throw new Error("工作表列數過多，請整理成 2,000 題以內的檔案後再匯入。");
     return fromRows(workbook.SheetNames.map(name => ({ name, rows: root.XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: "", raw: false }) })));
   }
-  async function convertFile(file) {
-    const result = await readFile(file);
-    return {...result,fileName:file.name};
+  async function convertFile(file, answerFile = null) {
+    const result = await readFile(file, answerFile);
+    return {...result,fileName:file.name,answerFileName:answerFile?.name};
   }
   function standardRows(questions) {
     return [["題目","選項A","選項B","選項C","選項D","答案","解析","題型","解析A","解析B","解析C","解析D"],
@@ -247,32 +318,51 @@
     return bankFrom(questions, value.count, value.enabled === true, value.version);
   }
   function editorMarkup() {
-    return `<div class="custom-import"><div class="row"><button type="button" class="secondary" data-import>自動轉換 PDF／Excel 題目</button><a class="link-button" href="templates/老師自訂題庫範本.xlsx" download>下載 Excel 範本</a></div><input type="file" data-import-file accept=".pdf,.xlsx,.xls" hidden><p class="learn-note">每次匯入都會先尋找「選擇題」大標題；找到後只使用該區塊，遇到下一個大題即停止。PDF 與 Excel（含多工作表）皆適用。沒有大題標題的標準題庫可直接辨識欄位。只保留有答案的四選一純文字題，圖片題與其他題型自動略過。先核對預覽，再採用或下載標準 Excel；掃描 PDF 請改用文字 PDF 或 Excel。</p><div data-import-status role="status" aria-live="polite"></div><div data-convert-preview></div><div data-import-preview></div></div>`;
+    return `<div class="custom-import"><div class="row"><button type="button" class="secondary" data-import>自動轉換 PDF／Excel 題目</button><button type="button" class="secondary" data-answer-button disabled>搭配答案卷 PDF</button><a class="link-button" href="templates/老師自訂題庫範本.xlsx" download>下載 Excel 範本</a></div><input type="file" data-import-file accept=".pdf,.xlsx,.xls" hidden><input type="file" data-answer-file accept=".pdf" hidden><p class="learn-note">每次匯入都會先尋找「選擇題」大標題；找到後只使用該區塊，遇到下一個大題即停止。PDF 與 Excel（含多工作表）皆適用。沒有大題標題的標準題庫可直接辨識欄位。只保留有答案的四選一純文字題，圖片題與其他題型自動略過。若答案分開，先選題目卷，再選同一份試卷的已填答案版或單科題號答案表。先核對預覽，再採用或下載標準 Excel；掃描 PDF 請改用文字 PDF 或 Excel。</p><div data-import-status role="status" aria-live="polite"></div><div data-convert-preview></div><div data-import-preview></div></div>`;
   }
   function bindEditor(host, initial = null) {
-    let bank = cleanBank(initial), importing = false, converted = null;
+    let bank = cleanBank(initial), importing = false, converted = null, paper = null;
     const find = s => host.querySelector(s), status = find("[data-import-status]"), preview = find("[data-import-preview]"), conversion = find("[data-convert-preview]"), file = find("[data-import-file]"), button = find("[data-import]");
+    const answerButton = find("[data-answer-button]"), answerInput = find("[data-answer-file]");
     const questionPreview = questions => `<div class="custom-preview">${questions.map((q,i)=>`<article><b>${i+1}. ${esc(q.prompt)}</b><ol type="A">${q.options.map((o,n)=>`<li${n===q.answerIndex?' class="custom-correct"':""}>${esc(o)}${n===q.answerIndex?" ✓":""}</li>`).join("")}</ol><p>${esc(q.explanation||"原檔未提供解析；不會自動猜測理由。")}</p></article>`).join("")}</div>`;
     function show() {
       if (!bank) { preview.innerHTML = ""; return; }
       preview.innerHTML = `<div class="custom-bank-settings"><label><input type="checkbox" data-custom-enabled${bank.enabled ? " checked" : ""}>開放「未知地點」隱藏關卡</label><label>本場題數（1～${bank.questions.length}）<input class="name-input" data-custom-count type="number" min="1" max="${bank.questions.length}" value="${bank.count}"></label><p>已匯入 ${bank.questions.length} 題。題目會隨機抽出且不重複，敵我血量最多 10，道具最高第 3 階。</p><details><summary>預覽題目與答案（發布前請核對）</summary><div class="custom-preview">${bank.questions.map((q, i) => `<article><b>${i + 1}. ${esc(q.prompt)}</b><ol type="A">${q.options.map((o, n) => `<li${n === q.answerIndex ? ' class="custom-correct"' : ""}>${esc(o)}${n === q.answerIndex ? " ✓" : ""}</li>`).join("")}</ol><p>${esc(q.explanation || "未提供解析；學生作答後會顯示答案並提示再試。")}</p></article>`).join("")}</div></details><button class="link-button" type="button" data-custom-clear>移除本次題庫</button></div>`;
       find("[data-custom-clear]").onclick = () => { bank = null; status.textContent = "題庫已移除，儲存後生效。"; show(); };
     }
-    button.onclick = () => file.click();
-    file.onchange = async () => {
-      if (!file.files?.[0]) return;
-      importing = true; button.disabled = true; status.textContent = "正在辨識檔案並自動轉換題庫…";
+    async function importPaper(answerFile = null) {
+      if (!paper || importing) return;
+      importing = true; button.disabled = answerButton.disabled = true;
+      converted = null; conversion.innerHTML = "";
+      status.textContent = "正在辨識檔案並自動轉換題庫…";
       try {
-        const result = await convertFile(file.files[0]);
-        if (!result.questions.length) throw new Error(`沒有可轉換的四選一題目。${result.skipped[0]?.reason || "請確認原檔有題目、四個選項及答案。"}`);
+        const result = await convertFile(paper, answerFile);
+        if (!result.questions.length) {
+          const missing = result.skipped.find(q => q.reason.includes("缺少單一正確答案"));
+          const reason = !answerFile && /\.pdf$/i.test(paper.name) && missing
+            ? "若答案另外存成 PDF，可按「搭配答案卷 PDF」重新轉換。"
+            : result.skipped[0]?.reason || "請確認原檔有題目、四個選項及答案。";
+          throw new Error("沒有可轉換的四選一題目。" + reason);
+        }
         converted = result;
         status.innerHTML = `<p>自動轉換完成：可用 ${result.questions.length} 題，略過 ${result.skipped.length} 筆。尚未採用或發布。</p><p>辨識方式：${esc((result.formats || []).join("、"))}</p>${result.skipped.length ? `<details><summary>查看略過原因</summary><ul>${result.skipped.map(s => `<li>${esc(s.source)}：${esc(s.reason)}</li>`).join("")}</ul></details>` : ""}`;
-        conversion.innerHTML = `<section class="custom-bank-settings"><h4>轉換結果預覽</h4><p>${esc(result.fileName)} → 標準四選一題庫。請核對題目、選項及綠色標示的正確答案。</p>${questionPreview(result.questions)}<div class="row"><button class="secondary" type="button" data-convert-download>下載標準題庫 Excel</button><button class="primary" type="button" data-convert-apply>採用轉換結果</button><button class="link-button" type="button" data-convert-cancel>取消這次轉換</button></div></section>`;
+        conversion.innerHTML = `<section class="custom-bank-settings"><h4>轉換結果預覽</h4><p>${esc(result.fileName)}${result.answerFileName ? ` ＋ ${esc(result.answerFileName)}` : ""} → 標準四選一題庫。請核對題目、選項及綠色標示的正確答案。</p>${questionPreview(result.questions)}<div class="row"><button class="secondary" type="button" data-convert-download>下載標準題庫 Excel</button><button class="primary" type="button" data-convert-apply>採用轉換結果</button><button class="link-button" type="button" data-convert-cancel>取消這次轉換</button></div></section>`;
         find("[data-convert-download]").onclick = async e => {const b=e.currentTarget;b.disabled=true;try{await downloadStandard(result.questions)}catch(err){status.textContent=err.message}finally{b.disabled=false}};
         find("[data-convert-apply]").onclick = () => {bank=bankFrom(result.questions,result.questions.length);converted=null;conversion.innerHTML="";show();status.textContent=`已採用 ${bank.questions.length} 題。請設定本場題數，再建立班級或儲存發布。`};
         find("[data-convert-cancel]").onclick = () => {converted=null;conversion.innerHTML="";status.textContent="已取消這次轉換，原本題庫保留。"};
       } catch (err) { status.textContent = err.name === "PasswordException" ? "PDF 有密碼，請先解除保護再匯入。" : err.message; }
-      finally { importing = false; button.disabled = false; file.value = ""; }
+      finally { importing = false; button.disabled = false; answerButton.disabled = !/\.pdf$/i.test(paper.name); }
+    }
+    button.onclick = () => file.click();
+    answerButton.onclick = () => answerInput.click();
+    file.onchange = () => {
+      if (!file.files?.[0] || importing) return;
+      paper = file.files[0]; file.value = "";
+      return importPaper();
+    };
+    answerInput.onchange = () => {
+      const selected = answerInput.files?.[0]; answerInput.value = "";
+      if (selected) return importPaper(selected);
     };
     show();
     return { getBank() {

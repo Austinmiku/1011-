@@ -195,7 +195,7 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   assert.match(markup, /map-next[\s\S]*?第 5 關/);
   assert.deepEqual([nodes[7].locked, nodes[7].status], [false, '老師開放']);
   assert.match(markup, /class-open-note[\s\S]*第 5 關[\s\S]*第 7 關[\s\S]*只有這些關卡可以進入/);
-  // 跳關完成老師開放的關卡，不會順便解鎖中間的關卡，也不會提早出現結局
+  // 跳關完成老師開放的關卡不會順便解鎖中間的關卡，結尾劇情可獨立觀看
   classGame.run('state.level=5;showReward()');
   assert.equal(classGame.run('state.unlocked'), 1);
   assert.equal(classGame.run('state.done.has(5)'), true);
@@ -205,8 +205,14 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   classGame.run('showMap()');
   nodes = mapNodes();
   assert.equal(nodes[2].locked, true, 'story progress never opens an unassigned class level');
+  registry['#watchEnding'] = element();
   classGame.run('state.cloudClass.openLevels=[8];state.level=8;showReward()');
-  assert.doesNotMatch(markup, /觀看守護行動結局/, 'the ending only appears after all eight artifacts are restored');
+  assert.match(markup, /回到行動地圖[\s\S]*觀看結尾劇情/);
+  const restoredBeforeEnding = classGame.run('JSON.stringify([...state.done])');
+  registry['#watchEnding'].onclick();
+  assert.match(markup, /合・守護行動完成/);
+  assert.equal(classGame.run('JSON.stringify([...state.done])'), restoredBeforeEnding);
+  assert.equal(classGame.run('state.unlocked'), 2, 'watching the ending never unlocks other levels');
   classGame.run('state.cloudClass.openLevels=[];showMap()');
   nodes = mapNodes();
   assert.equal(Object.values(nodes).every(node => node.locked), true, 'an empty teacher assignment locks every level');
@@ -217,6 +223,11 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
   classGame.run('state.cloudClass=null;state.unlocked=1;showMap()');
   nodes = mapNodes();
   assert.equal(nodes[5].locked, true);
+  classGame.run('state.level=8;showReward()');
+  assert.doesNotMatch(markup, /觀看結尾劇情|觀看守護行動結局/);
+  classGame.run('state.done=new Set([1,2,3,4,5,6,7]);state.unlocked=8;showReward()');
+  assert.match(markup, /觀看守護行動結局/);
+  assert.doesNotMatch(markup, /觀看結尾劇情/);
 
   const makeCreateInputs=()=>{
     for(const [id,value] of Object.entries({newName:'測試班級',newQuestionCount:'15',newPass:'test-only-123456',newPass2:'test-only-123456',createForm:'',createError:'',createGo:'',createResult:''}))registry['#'+id]=element({value});

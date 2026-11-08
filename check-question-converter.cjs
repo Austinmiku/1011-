@@ -57,6 +57,28 @@ const namedText=api.fromRows([{name:'選擇題',rows:[['(2)1. 題目一？'],['�
 assert.equal(namedText.questions.length,1);assert.equal(namedText.questions[0].answerIndex,1);
 const positionalTitles=api.fromRows([{name:'試卷',rows:[['一、閱讀題組'],['閱讀題不匯入','甲','乙','丙','丁','A'],['二、選擇題'],['這題保留','春','夏','秋','冬','C'],['三、配合題'],['配合題不匯入','東','西','南','北','B']]}]);
 assert.equal(positionalTitles.questions.length,1);assert.equal(positionalTitles.questions[0].prompt,'這題保留');
+const decorated = api.fromPdfText('◎選擇題：\n(➂) 1. 哪種資料能指路？\n➀書信➁照片➂地圖➃收據\n◎閱讀題組：\n(1) 2. 另有閱讀文章？\n➀甲➁乙➂丙➃丁');
+assert.deepEqual(Array.from(decorated.questions,q=>q.answerIndex),[2]);
+const bareExam = '一、單題：\n1. 地圖上方是什麼方向？\n(A)北方(B)南方(C)東方(D)西方\n二、題組：\n1. 依文章回答？\n(A)甲(B)乙(C)丙(D)丁';
+assert.equal(api.fromPdfText(bareExam).questions.length,0);
+const withKey = api.fromPdfText(bareExam, '參考答案\n題號 1\n答案 A');
+assert.deepEqual(Array.from(withKey.questions,q=>q.answerIndex),[0]);
+assert.ok(withKey.formats.includes('搭配答案卷核對'));
+const filledCopy = '一、選擇題\n(1)1. 地圖上方是什麼方向？\n①北方②南方③東方④西方';
+assert.equal(api.fromPdfText(bareExam, filledCopy).questions[0].answerIndex,0);
+const conflict = api.fromPdfText(filledCopy, '1. B');
+assert.equal(conflict.questions.length,0);
+assert.match(conflict.skipped[0].reason,/答案標示不一致/);
+const wrongCopy = filledCopy.replace('地圖上方','地圖下方');
+assert.equal(api.fromPdfText(bareExam, wrongCopy).questions.length,0);
+assert.equal(api.fromPdfText(bareExam, '參考答案\n1 A B C D').questions.length,0);
+assert.equal(api.fromPdfText(bareExam, '題號 1 2 3 4\n答案').questions.length,0);
+assert.equal(api.fromPdfText(bareExam, '參考答案\n1 D\n2 A B C D').questions.length,0);
+assert.equal(api.fromPdfText('一、單題\n(D)\n1. 哪一項符合？\n(A)甲(B)乙(C)丙(D)丁').questions.length,0);
+assert.equal(api.fromPdfText('一、選擇題\n(1)1. 看完圖表後如何判讀？\n①甲②乙③丙④丁').questions.length,0);
+assert.equal(api.fromPdfText('選擇題（複選）\n(1)1. 哪些選項符合？\n①甲②乙③丙④丁').questions.length,0);
+const inlineConflict = filledCopy + '\n答案：B';
+assert.equal(api.fromPdfText(inlineConflict, '1. A').questions.length,0);
 const rows=api.standardRows(teacher.questions), roundtrip=api.fromRows([{name:'轉換後題庫',rows}]);
 assert.equal(roundtrip.questions.length,2);assert.deepEqual(JSON.parse(JSON.stringify(roundtrip.questions)),JSON.parse(JSON.stringify(teacher.questions)));
 // The downloaded workbook must remain readable by the same importer and preserve literal text.
