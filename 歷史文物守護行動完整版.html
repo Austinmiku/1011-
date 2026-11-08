@@ -1025,6 +1025,13 @@ function updateParty(lostFrom){const h=$b("#heroHearts");if(h)h.innerHTML=Array.
 function lockBattleItems(){document.querySelectorAll("[data-use]").forEach(b=>b.disabled=true)}
 function showContinue(label,fn){const w=$b("#btNextWrap");if(!w)return fn();w.innerHTML=`<button class="primary bt-next" type="button" id="btNext">${label}</button>`;enhanceActionButtons();const b=$b("#btNext");let activated=false;b.onclick=()=>{if(activated)return;activated=true;b.classList.add("is-pressed");b.setAttribute("aria-disabled","true");setTimeout(fn,320)};b.focus({preventScroll:false})}
 function toggleSfx(){sfxOn=!sfxOn;try{localStorage.setItem(SFX_KEY,sfxOn?"on":"off")}catch{}const b=$b("#sfxBtn");if(b){b.setAttribute("aria-pressed",String(sfxOn));b.textContent=sfxOn?"音效：開":"音效：關"}if(sfxOn)sfxPlay("item")}
+/* 按鈕音效（Kenney UI Audio，CC0）：同一類按鈕用同一個音效，跟著「音效：開／關」 */
+const UI_SFX={confirm:"click1",secondary:"click3",choice:"switch2",place:"rollover6",toggle:"switch13"},uiSfxAudio={};
+function uiSfxKind(el){if(el.matches("#sfxBtn,[data-use]"))return"";if(el.matches(".map-level,.explore-pin"))return"place";
+ if(el.matches(".answer,.item,[data-predict],[data-confidence],[data-task-answer],[data-f],[data-starter],[data-duel-level],[data-event-choice],[data-event-answer]"))return"choice";
+ if(el.matches(".mini,.link-button,input,summary"))return"toggle";return el.matches(".primary,[type=submit]")?"confirm":"secondary"}
+function uiSfx(kind){const name=UI_SFX[kind];if(!sfxOn||!name||typeof Audio!=="function")return;try{const base=uiSfxAudio[name]||(uiSfxAudio[name]=Object.assign(new Audio(`assets/sfx/${name}.ogg`),{preload:"auto"})),a=base.cloneNode();a.volume=.45;a.play().catch(()=>{})}catch{}}
+document.addEventListener?.("click",e=>{const el=e.target.closest?.("button,input[type=checkbox],input[type=radio],summary");if(el&&!el.disabled)uiSfx(uiSfxKind(el))},true);
 /* 魔杖頂端座標：插畫版依 battle-hero.webp 中法杖寶珠位置（圖片寬 91.2%、高 14.6%）；SVG 版取 .hero-gem */
 function staffTip(){const st=$b(".bt-stage"),hs=$b(".hero-sprite");if(!st||!hs)return null;const s=st.getBoundingClientRect(),painted=hs.classList.contains("painted"),el=painted?hs.querySelector(".hero-paint"):hs.querySelector(".hero-gem");if(!el)return null;const r=el.getBoundingClientRect();if(!r.width)return null;return painted?{x:r.left-s.left+r.width*.912,y:r.top-s.top+r.height*.146}:{x:r.left-s.left+r.width/2,y:r.top-s.top+r.height/2}}
 function foeCore(){const f=$b(".foe-sprite");if(!f)return null;const s=$b(".bt-stage").getBoundingClientRect(),r=f.getBoundingClientRect();return {x:r.left-s.left+r.width*.5,y:r.top-s.top+r.height*.48}}
