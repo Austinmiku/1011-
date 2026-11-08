@@ -984,6 +984,10 @@ function sfxPlay(kind){if(!sfxOn)return;try{const AC=window.AudioContext||window
   block:()=>{note(1046,0,.16,"triangle",.6);note(1568,.08,.28,"triangle",.5)},
   heal:()=>{[523,659,784,1046].forEach((f,i)=>note(f,i*.08,.22,"sine",.7))},
   item:()=>{note(880,0,.1,"triangle",.55);note(1318,.08,.2,"triangle",.5)},
+  launch:()=>{noise(0,.42,.55,900);note(196,0,.42,"sawtooth",.18,784);note(131,.36,.7,"sine",.45,65);
+   [523,659,784,1046,1318].forEach((f,i)=>note(f,.3+i*.065,.24,"triangle",.4));
+   [523,659,784,1046].forEach(f=>{note(f,.66,1.15,"triangle",.24);note(f*1.005,.66,1.15,"sine",.16)});
+   [2093,2637,3136,2349,3520,2794].forEach((f,i)=>note(f,.7+i*.11,.18,"sine",.22))},
   win:()=>{[523,659,784,1046,784,1046].forEach((f,i)=>note(f,i*.11,i===5?.6:.14,"square",.33))},
   lose:()=>{[392,330,262,196].forEach((f,i)=>note(f,i*.2,.34,"triangle",.5))}})[kind]?.()}catch{}}
 const motionOK=()=>!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -1027,10 +1031,10 @@ function showContinue(label,fn){const w=$b("#btNextWrap");if(!w)return fn();w.in
 function toggleSfx(){sfxOn=!sfxOn;try{localStorage.setItem(SFX_KEY,sfxOn?"on":"off")}catch{}const b=$b("#sfxBtn");if(b){b.setAttribute("aria-pressed",String(sfxOn));b.textContent=sfxOn?"音效：開":"音效：關"}if(sfxOn)sfxPlay("item")}
 /* 按鈕音效（Kenney UI Audio，CC0）：同一類按鈕用同一個音效，跟著「音效：開／關」 */
 const UI_SFX={confirm:"click1",secondary:"click3",choice:"switch2",place:"rollover6",toggle:"switch13"},uiSfxAudio={};
-function uiSfxKind(el){if(el.matches("#sfxBtn,[data-use]"))return"";if(el.matches(".map-level,.explore-pin"))return"place";
+function uiSfxKind(el){if(el.matches("#sfxBtn,[data-use]"))return"";if(el.matches("#start"))return"launch";if(el.matches(".map-level,.explore-pin"))return"place";
  if(el.matches(".answer,.item,[data-predict],[data-confidence],[data-task-answer],[data-f],[data-starter],[data-duel-level],[data-event-choice],[data-event-answer]"))return"choice";
  if(el.matches(".mini,.link-button,input,summary"))return"toggle";return el.matches(".primary,[type=submit]")?"confirm":"secondary"}
-function uiSfx(kind){const name=UI_SFX[kind];if(!sfxOn||!name||typeof Audio!=="function")return;try{const base=uiSfxAudio[name]||(uiSfxAudio[name]=Object.assign(new Audio(`assets/sfx/${name}.ogg`),{preload:"auto"})),a=base.cloneNode();a.volume=.45;a.play().catch(()=>{})}catch{}}
+function uiSfx(kind){if(kind==="launch"){sfxPlay("launch");kind="confirm"}const name=UI_SFX[kind];if(!sfxOn||!name||typeof Audio!=="function")return;try{const base=uiSfxAudio[name]||(uiSfxAudio[name]=Object.assign(new Audio(`assets/sfx/${name}.ogg`),{preload:"auto"})),a=base.cloneNode();a.volume=.45;a.play().catch(()=>{})}catch{}}
 document.addEventListener?.("click",e=>{const el=e.target.closest?.("button,input[type=checkbox],input[type=radio],summary");if(el&&!el.disabled)uiSfx(uiSfxKind(el))},true);
 /* 魔杖頂端座標：插畫版依 battle-hero.webp 中法杖寶珠位置（圖片寬 91.2%、高 14.6%）；SVG 版取 .hero-gem */
 function staffTip(){const st=$b(".bt-stage"),hs=$b(".hero-sprite");if(!st||!hs)return null;const s=st.getBoundingClientRect(),painted=hs.classList.contains("painted"),el=painted?hs.querySelector(".hero-paint"):hs.querySelector(".hero-gem");if(!el)return null;const r=el.getBoundingClientRect();if(!r.width)return null;return painted?{x:r.left-s.left+r.width*.912,y:r.top-s.top+r.height*.146}:{x:r.left-s.left+r.width/2,y:r.top-s.top+r.height/2}}
