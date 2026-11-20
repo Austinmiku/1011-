@@ -659,6 +659,392 @@
 .map-level.custom-sail{left:83%;top:82%}.map-level.custom-sail .marker{background:#183f4f;color:#ffdd7e;border-color:#ffdd7e}.map-level.custom-sail .map-label{right:105px;top:50%;transform:translateY(-50%)}
 .custom-import{margin:18px 0}.custom-bank-settings{padding:20px;border:1px solid #a98752;border-radius:12px;margin:16px 0}.custom-bank-settings>label{display:block;margin:12px 0}.custom-bank-settings input[type=number]{max-width:180px;display:block}.custom-preview{max-height:420px;overflow:auto;margin-top:16px}.custom-preview article{padding:14px;border-top:1px solid #b7a682;overflow-wrap:anywhere}.custom-correct{font-weight:bold;color:#20563c}.custom-import details{margin:14px 0}.custom-import .row{flex-wrap:wrap}
 </style>
+<style id="motion-fx">
+/* screen motion fx */
+@media (prefers-reduced-motion: no-preference){
+@keyframes fx-home-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fx-home-soft{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes fx-home-fade{from{opacity:0}to{opacity:1}}
+@keyframes fx-home-fly-l{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
+@keyframes fx-home-fly-r{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes fx-home-pop{from{opacity:0;transform:translateY(22px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes fx-home-num{0%{opacity:0;transform:scale(.5)}70%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:none}}
+@keyframes fx-home-kenburns{from{transform:scale(1.04) translate3d(0,0,0)}to{transform:scale(1.14) translate3d(-1.5%,-1%,0)}}
+@keyframes fx-home-twinkle{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes fx-home-breathe{0%,100%{opacity:.12}50%{opacity:.5}}
+@keyframes fx-home-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes fx-home-ring{from{transform:scale(1);opacity:.7}to{transform:scale(1.9);opacity:0}}
+@keyframes fx-home-dot{0%,100%{transform:scale(.7);opacity:.45}50%{transform:scale(1.25);opacity:1}}
+@keyframes fx-home-sheen{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+@keyframes fx-home-pan{from{background-position:100% 50%}to{background-position:0% 50%}}
+.load-screen>*{animation:fx-home-rise .4s ease-out both}
+.load-screen>.eyebrow{animation-delay:0s}
+.load-screen>h2{animation-delay:.08s}
+.load-screen>.load-bar{animation-delay:.16s}
+.load-screen>.load-count{animation-delay:.24s}
+.load-screen h2::after{content:"";display:inline-block;width:9px;height:9px;margin-left:10px;border-radius:50%;background:#e7ae43;vertical-align:middle;transform-origin:50% 50%;pointer-events:none;animation:fx-home-dot 1.1s ease-in-out infinite}
+.load-bar i{position:relative;overflow:hidden}
+.load-bar i::after{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(90deg,transparent,#ffffffa6,transparent);pointer-events:none;animation:fx-home-sheen 1.6s linear infinite}
+.how-head>*{animation:fx-home-rise .42s ease-out both}
+.how-head>*:nth-child(2){animation-delay:.08s}
+.how-head>*:nth-child(3){animation-delay:.16s}
+.how-grid>.how-step{animation:fx-home-pop .45s cubic-bezier(.2,.9,.3,1.15) both}
+.how-grid>.how-step:nth-child(1){animation-delay:.18s}
+.how-grid>.how-step:nth-child(2){animation-delay:.26s}
+.how-grid>.how-step:nth-child(3){animation-delay:.34s}
+.how-grid>.how-step:nth-child(4){animation-delay:.42s}
+.how-step .step-art{animation:fx-home-float 3.6s ease-in-out infinite}
+.how-step:nth-child(2) .step-art{animation-delay:-1.2s}
+.how-step:nth-child(3) .step-art{animation-delay:-2.4s}
+.how-step:nth-child(4) .step-art{animation-delay:-.6s}
+.how-step .step-num{position:relative}
+.how-step .step-num::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:2px solid var(--sea);pointer-events:none;animation:fx-home-ring 2.8s ease-out infinite}
+.how-step:nth-child(2) .step-num::after{animation-delay:-.7s}
+.how-step:nth-child(3) .step-num::after{animation-delay:-1.4s}
+.how-step:nth-child(4) .step-num::after{animation-delay:-2.1s}
+.hero{overflow-x:clip}
+.hero-art{animation:fx-home-fade .8s ease-out both}
+.hero-art img{transform-origin:55% 45%;animation:fx-home-kenburns 16s ease-in-out infinite alternate}
+.hero::before,.hero::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background-repeat:no-repeat}
+.hero::before{background-image:radial-gradient(circle,#fff6d6 0 2px,transparent 3px),radial-gradient(circle,#ffe08a 0 1.6px,transparent 2.6px),radial-gradient(circle,#fff6d6 0 1.8px,transparent 2.8px);background-size:12px 12px,9px 9px,10px 10px;background-position:9% 14%,62% 9%,94% 52%;animation:fx-home-twinkle 2.9s ease-in-out infinite}
+.hero::after{background-image:radial-gradient(circle,#ffe08a 0 2px,transparent 3px),radial-gradient(circle,#fff6d6 0 1.6px,transparent 2.6px),radial-gradient(circle,#ffe08a 0 1.4px,transparent 2.4px);background-size:14px 14px,8px 8px,9px 9px;background-position:46% 80%,28% 46%,70% 90%;animation:fx-home-twinkle 4.1s ease-in-out -1.7s infinite}
+.hero .hero-copy>.eyebrow{animation:fx-home-rise .4s ease-out both}
+.hero h2 span:nth-child(1){animation:fx-home-fly-l .6s cubic-bezier(.2,.8,.2,1) .1s both}
+.hero h2 span:nth-child(2){animation:fx-home-fly-r .6s cubic-bezier(.2,.8,.2,1) .24s both}
+.hero .hero-copy>p:nth-of-type(1){animation:fx-home-rise .4s ease-out .34s both}
+.hero .hero-copy>p:nth-of-type(2){animation:fx-home-rise .4s ease-out .42s both}
+.hero .name-form{animation:fx-home-rise .4s ease-out .48s both}
+#start::before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;background:linear-gradient(180deg,#fff3c0 0%,#ffe08a00 70%);opacity:.12;pointer-events:none;animation:fx-home-breathe 3.2s ease-in-out infinite}
+#start:disabled::before{animation:none;opacity:0}
+.teacher-screen>.teacher-hero{animation:fx-home-fade .45s ease-out both,fx-home-pan 26s ease-in-out infinite alternate}
+.teacher-screen>.teacher-step{animation:fx-home-soft .42s ease-out .12s both}
+.teacher-screen>.learn-note{animation:fx-home-soft .42s ease-out .24s both}
+.teacher-screen>.row{animation:fx-home-soft .42s ease-out .3s both}
+.summary-counts>div{animation:fx-home-fade .4s ease-out both}
+.summary-counts>div:nth-child(1){animation-delay:0s}
+.summary-counts>div:nth-child(2){animation-delay:.1s}
+.summary-counts>div:nth-child(3){animation-delay:.2s}
+.summary-counts b{animation:fx-home-num .45s ease-out both}
+.summary-counts>div:nth-child(1) b{animation-delay:.15s}
+.summary-counts>div:nth-child(2) b{animation-delay:.25s}
+.summary-counts>div:nth-child(3) b{animation-delay:.35s}
+.summary-list>.summary-unit{animation:fx-home-soft .4s ease-out both}
+.summary-list>.summary-unit:nth-child(1){animation-delay:.25s}
+.summary-list>.summary-unit:nth-child(2){animation-delay:.33s}
+.summary-list>.summary-unit:nth-child(3){animation-delay:.41s}
+.summary-list>.summary-unit:nth-child(n+4){animation-delay:.49s}
+}
+@media (prefers-reduced-motion: no-preference){
+@keyframes fx-journey-pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+@keyframes fx-journey-fade{from{opacity:0}to{opacity:1}}
+@keyframes fx-journey-slide-l{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
+@keyframes fx-journey-slide-r{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes fx-journey-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes fx-journey-drop{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes fx-journey-flip{from{opacity:0;transform:rotateX(-80deg)}to{opacity:1;transform:none}}
+@keyframes fx-journey-page{from{opacity:0;transform:perspective(1200px) rotateY(-14deg) translateX(-18px)}to{opacity:1;transform:none}}
+@keyframes fx-journey-kenburns{from{transform:scale(1.04) translate3d(-1%,0,0)}to{transform:scale(1.14) translate3d(1.2%,-1.5%,0)}}
+@keyframes fx-journey-fog{from{transform:translate3d(-3%,0,0)}to{transform:translate3d(3%,0,0)}}
+@keyframes fx-journey-halo{0%{transform:scale(.92);opacity:.75}100%{transform:scale(1.5);opacity:0}}
+@keyframes fx-journey-twinkle{0%,100%{transform:scale(.6) rotate(0deg);opacity:.35}50%{transform:scale(1.15) rotate(45deg);opacity:1}}
+@keyframes fx-journey-sheen{0%,100%{transform:translateX(-120%)}55%{transform:translateX(120%)}}
+@keyframes fx-journey-glow{0%,100%{filter:drop-shadow(0 0 2px #3fd0c066)}50%{filter:drop-shadow(0 0 10px #3fd0c0cc)}}
+@keyframes fx-journey-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.adventure-map::before{content:"";position:absolute;top:-10%;bottom:-10%;left:-40%;width:180%;z-index:1;pointer-events:none;opacity:.42;background:radial-gradient(ellipse 22% 16% at 30% 45%,#fffbe8 0,transparent 70%),radial-gradient(ellipse 18% 13% at 62% 70%,#fffbe8 0,transparent 72%),radial-gradient(ellipse 26% 14% at 85% 30%,#fffbe8 0,transparent 70%);animation:fx-journey-fog 26s ease-in-out infinite alternate}
+.map-head-copy{animation:fx-journey-slide-l .5s ease-out backwards}
+.map-next{animation:fx-journey-slide-r .5s ease-out .12s backwards}
+.adventure-map>.map-level:nth-child(1){--d:0s}
+.adventure-map>.map-level:nth-child(2){--d:.05s}
+.adventure-map>.map-level:nth-child(3){--d:.1s}
+.adventure-map>.map-level:nth-child(4){--d:.15s}
+.adventure-map>.map-level:nth-child(5){--d:.2s}
+.adventure-map>.map-level:nth-child(6){--d:.25s}
+.adventure-map>.map-level:nth-child(7){--d:.3s}
+.adventure-map>.map-level:nth-child(8){--d:.35s}
+.adventure-map>.map-level:nth-child(9){--d:.4s}
+.adventure-map .map-level .marker{position:relative;animation:fx-journey-pop .45s cubic-bezier(.2,.9,.3,1.2) var(--d,0s) backwards}
+.adventure-map .map-level .map-label{animation:fx-journey-fade .35s ease var(--d,0s) backwards}
+.adventure-map .map-level .map-label{animation-delay:calc(var(--d,0s) + .1s)}
+.adventure-map .map-level .map-number{animation:fx-journey-pop .3s ease calc(var(--d,0s) + .12s) backwards}
+.map-level.current .marker::before{content:"";position:absolute;inset:-8px;border-radius:50%;border:3px solid #ffd053;pointer-events:none;opacity:0;animation:fx-journey-halo 1.8s ease-out infinite}
+.map-level.done .marker::after{content:"";position:absolute;right:-6px;top:-6px;width:14px;height:14px;background:#fff8d0;clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);box-shadow:0 0 8px #fff3b0;pointer-events:none;animation:fx-journey-twinkle 2.8s ease-in-out infinite}
+.departure .mission-card{animation:fx-journey-slide-l .5s ease-out backwards}
+.departure .loadout-panel{animation:fx-journey-slide-r .5s ease-out .08s backwards}
+.loadout-panel .item-grid{perspective:900px}
+.loadout-panel .item{position:relative;overflow:hidden;transform-origin:50% 0;animation:fx-journey-flip .5s cubic-bezier(.2,.8,.25,1) backwards;animation-delay:.35s;transition:transform .16s ease}
+.loadout-panel .item:nth-child(1){animation-delay:.15s}
+.loadout-panel .item:nth-child(2){animation-delay:.19s}
+.loadout-panel .item:nth-child(3){animation-delay:.23s}
+.loadout-panel .item:nth-child(4){animation-delay:.27s}
+.loadout-panel .item:nth-child(5){animation-delay:.31s}
+.loadout-panel .item:nth-child(6){animation-delay:.35s}
+@media (hover:hover) and (pointer:fine){
+  .loadout-panel .item:hover{transform:translateY(-3px)}
+}
+.loadout-panel .item:active{transform:translateY(1px)}
+.loadout-panel .item.selected::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 35%,#ffffffb3 50%,transparent 65%);animation:fx-journey-sheen 3.4s ease-in-out infinite}
+.loadout-panel .item.selected .item-art{animation:fx-journey-glow 2.6s ease-in-out infinite}
+.predict-art{animation:fx-journey-slide-l .55s ease-out backwards}
+.predict-art img{animation:fx-journey-kenburns 16s ease-in-out infinite alternate;transform-origin:50% 50%}
+.predict-card{animation:fx-journey-slide-r .55s ease-out .1s backwards}
+.predict-choices button{animation:fx-journey-rise .45s cubic-bezier(.2,.9,.3,1.1) backwards;animation-delay:.24s}
+.predict-choices button:nth-child(2){animation-delay:.31s}
+.predict-choices button:nth-child(3){animation-delay:.38s}
+.unit-guide-screen .guide-paper{transform-origin:0 50%;animation:fx-journey-page .6s cubic-bezier(.2,.8,.2,1) backwards}
+.unit-guide-screen .guide-card{animation:fx-journey-rise .45s ease-out backwards;animation-delay:.3s}
+.unit-guide-screen .guide-card:nth-child(2){animation-delay:.38s}
+.unit-guide-screen .guide-tip{animation:fx-journey-fade .4s ease-out .46s backwards}
+.unit-guide-screen .guide-dot.current{animation:fx-journey-breathe 2.4s ease-in-out infinite}
+.flow-steps li{animation:fx-journey-drop .35s ease-out backwards}
+.flow-steps li:nth-child(2){animation-delay:.05s}
+.flow-steps li:nth-child(3){animation-delay:.1s}
+.flow-steps li:nth-child(4){animation-delay:.15s}
+.flow-steps li:nth-child(5){animation-delay:.2s}
+.flow-steps li.done span{animation:fx-journey-pop .35s ease-out backwards}
+.flow-steps li.current{overflow:hidden}
+.flow-steps li.current span{animation:fx-journey-breathe 2.4s ease-in-out infinite}
+.flow-steps li.current::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 35%,#ffffff40 50%,transparent 65%);animation:fx-journey-sheen 3.6s ease-in-out infinite}
+}
+@media (prefers-reduced-motion: no-preference){
+  @keyframes fx-explore-rise{from{opacity:0;transform:translateY(14px)}}
+  @keyframes fx-explore-scene-in{from{opacity:0;transform:scale(.97)}}
+  @keyframes fx-explore-book-open{from{opacity:0;transform:perspective(900px) rotateX(-16deg)}}
+  @keyframes fx-explore-pin-in{from{opacity:0;translate:0 -18px;scale:.6}}
+  @keyframes fx-explore-li-in{from{opacity:0;transform:translateX(-12px)}}
+  @keyframes fx-explore-sweep{0%{transform:translateX(-100%)}35%,100%{transform:translateX(250%)}}
+  @keyframes fx-explore-kb{from{transform:scale(1)}to{transform:scale(1.07) translate(-1.5%,-1%)}}
+  @keyframes fx-explore-spot-in{from{opacity:0;transform:translateX(-30px)}}
+  @keyframes fx-explore-slide-r{from{opacity:0;transform:translateX(28px)}}
+  @keyframes fx-explore-option-in{from{opacity:0;transform:translateX(-18px)}}
+  @keyframes fx-explore-scan{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+  @keyframes fx-explore-push{from{transform:scale(1.3);filter:brightness(.4)}to{transform:none;filter:none}}
+  @keyframes fx-explore-drift{from{transform:scale(1)}to{transform:scale(1.08) translate(-1.5%,-1%)}}
+  @keyframes fx-explore-copy-in{from{opacity:0;transform:translateY(26px)}}
+  @keyframes fx-explore-pop{from{opacity:0;scale:.6}}
+  @keyframes fx-explore-answer-in{from{opacity:0;transform:translateX(-16px)}}
+  @keyframes fx-explore-paper-l{from{opacity:0;transform:translateX(-36px) rotate(-1.5deg)}}
+  @keyframes fx-explore-paper-r{from{opacity:0;transform:translateX(36px) rotate(1deg)}}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-head{animation:fx-explore-rise .45s ease-out backwards}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-intro{animation:fx-explore-rise .45s ease-out .1s backwards}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-scene{animation:fx-explore-scene-in .6s ease-out .15s backwards}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-pin{animation:fx-explore-pin-in .45s cubic-bezier(.2,.8,.25,1) backwards}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-pin:nth-of-type(1){animation-delay:.25s}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-pin:nth-of-type(2){animation-delay:.4s}
+  .explore-screen:not(:has(.discovery-drawing)) .clue-notebook{animation:fx-explore-book-open .6s cubic-bezier(.2,.7,.2,1) .3s backwards;transform-origin:50% 0}
+  .explore-screen:not(:has(.discovery-drawing)) .clue-list li{animation:fx-explore-li-in .4s ease-out .45s backwards}
+  .explore-screen:not(:has(.discovery-drawing)) .clue-list li:nth-child(2){animation-delay:.55s}
+  .explore-screen:not(:has(.discovery-drawing)) .explore-next{animation:fx-explore-rise .4s ease-out .5s backwards}
+  .explore-scene::before{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;z-index:1;pointer-events:none;background:linear-gradient(100deg,transparent 0%,#fff4cf3d 50%,transparent 100%);animation:fx-explore-sweep 9s ease-in-out 1.2s infinite}
+  .evidence-stage .evidence-spot{position:relative;overflow:hidden;animation:fx-explore-spot-in .55s ease-out backwards}
+  .evidence-stage .evidence-spot img{animation:fx-explore-kb 16s ease-in-out infinite alternate}
+  .evidence-stage .evidence-spot::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,transparent 30%,#fff1b8a6 50%,transparent 70%);transform:translateX(-100%);animation:fx-explore-scan 1.3s ease-in-out .35s both}
+  .evidence-stage .evidence-task{animation:fx-explore-slide-r .5s ease-out .12s backwards}
+  .evidence-stage .evidence-options > button{animation:fx-explore-option-in .34s ease-out backwards}
+  .evidence-stage .evidence-options > button:nth-child(1){animation-delay:.26s}
+  .evidence-stage .evidence-options > button:nth-child(2){animation-delay:.33s}
+  .evidence-stage .evidence-options > button:nth-child(3){animation-delay:.4s}
+  .evidence-stage .evidence-options > button:nth-child(4){animation-delay:.47s}
+  .evidence-stage .evidence-options > button:nth-child(5){animation-delay:.54s}
+  .event-screen .event-art{animation:fx-explore-push 1.3s cubic-bezier(.2,.7,.2,1) backwards,fx-explore-drift 18s ease-in-out 1.3s infinite alternate}
+  .event-screen .event-copy{animation:fx-explore-copy-in .55s cubic-bezier(.2,.7,.2,1) .2s backwards}
+  .event-screen .event-choices > button{animation:fx-explore-pop .34s cubic-bezier(.3,1.4,.5,1) backwards}
+  .event-screen .event-choices > button:nth-child(1){animation-delay:.4s}
+  .event-screen .event-choices > button:nth-child(2){animation-delay:.47s}
+  .event-screen .event-choices > button:nth-child(3){animation-delay:.54s}
+  .event-screen .event-quiz .answers > .answer{animation:fx-explore-answer-in .34s ease-out backwards}
+  .event-screen .event-quiz .answers > .answer:nth-child(1){animation-delay:.36s}
+  .event-screen .event-quiz .answers > .answer:nth-child(2){animation-delay:.42s}
+  .event-screen .event-quiz .answers > .answer:nth-child(3){animation-delay:.48s}
+  .event-screen .event-quiz .answers > .answer:nth-child(4){animation-delay:.54s}
+  .event-screen .event-result{animation:fx-explore-rise .45s ease-out .3s backwards}
+  .event-quiz .answer{transition:transform .18s ease,background-color .18s ease}
+  .event-quiz .answer:hover{transform:translateX(4px)}
+  .event-quiz .answer:active{transform:translateX(2px) scale(.99)}
+  .exit-subtitle{animation:fx-explore-rise .45s ease-out .05s backwards}
+  .exit-layout .exit-recap{animation:fx-explore-paper-l .55s cubic-bezier(.2,.7,.2,1) backwards}
+  .exit-layout .exit-recap img{animation:fx-explore-kb 16s ease-in-out infinite alternate}
+  .exit-layout .exit-recap .recap-item:nth-of-type(1){animation:fx-explore-rise .4s ease-out .3s backwards}
+  .exit-layout .exit-recap .recap-item:nth-of-type(2){animation:fx-explore-rise .4s ease-out .4s backwards}
+  .exit-layout .exit-card{animation:fx-explore-paper-r .55s cubic-bezier(.2,.7,.2,1) .1s backwards}
+  .exit-layout .exit-card > *{animation:fx-explore-rise .34s ease-out backwards}
+  .exit-layout .exit-card > *:nth-child(1){animation-delay:.25s}
+  .exit-layout .exit-card > *:nth-child(2){animation-delay:.285s}
+  .exit-layout .exit-card > *:nth-child(3){animation-delay:.32s}
+  .exit-layout .exit-card > *:nth-child(4){animation-delay:.355s}
+  .exit-layout .exit-card > *:nth-child(5){animation-delay:.39s}
+  .exit-layout .exit-card > *:nth-child(6){animation-delay:.425s}
+  .exit-layout .exit-card > *:nth-child(7){animation-delay:.46s}
+  .exit-layout .exit-card > *:nth-child(8){animation-delay:.495s}
+  .exit-layout .exit-card > *:nth-child(9){animation-delay:.53s}
+  .starter-chips button{transition:transform .18s ease,box-shadow .18s ease}
+  .starter-chips button:hover{transform:translateY(-2px);box-shadow:0 4px 0 #b8893644}
+  .starter-chips button:active{transform:translateY(1px)}
+}
+@media (prefers-reduced-motion: no-preference){
+@keyframes fx-result-pop{
+  0%{opacity:0;transform:scale(.4)}
+  60%{opacity:1;transform:scale(1.1)}
+  100%{transform:scale(1)}
+}
+@keyframes fx-result-spin{to{transform:rotate(360deg)}}
+@keyframes fx-result-rise{
+  from{opacity:0;transform:translate3d(0,14px,0) scale(.96)}
+  to{opacity:1;transform:none}
+}
+@keyframes fx-result-slide-l{
+  from{opacity:0;transform:translate3d(-60px,0,0)}
+  to{opacity:1;transform:none}
+}
+@keyframes fx-result-slide-r{
+  from{opacity:0;transform:translate3d(60px,0,0)}
+  to{opacity:1;transform:none}
+}
+@keyframes fx-result-pop-in{
+  0%{opacity:0;transform:scale(.6)}
+  70%{opacity:1;transform:scale(1.06)}
+  100%{transform:none}
+}
+@keyframes fx-result-bounce{
+  0%{opacity:0;transform:scale(.5)}
+  55%{opacity:1;transform:scale(1.08)}
+  80%{transform:scale(.97)}
+  100%{transform:scale(1)}
+}
+@keyframes fx-result-twinkle{
+  0%,100%{opacity:.35;transform:scale(.7) rotate(0deg)}
+  50%{opacity:1;transform:scale(1.15) rotate(20deg)}
+}
+@keyframes fx-result-confetti{
+  from{opacity:.5;transform:translate3d(0,0,0)}
+  to{opacity:1;transform:translate3d(0,-6px,0)}
+}
+@keyframes fx-result-fade{from{opacity:0}to{opacity:1}}
+@keyframes fx-result-kenburns{
+  from{transform:scale(1) translate3d(0,0,0)}
+  to{transform:scale(1.08) translate3d(-1.5%,-1%,0)}
+}
+@keyframes fx-result-sweep{
+  from{transform:translateX(-100%)}
+  to{transform:translateX(100%)}
+}
+@keyframes fx-result-card-in{
+  from{opacity:0;transform:translate3d(-28px,12px,0)}
+  to{opacity:1;transform:none}
+}
+@keyframes fx-result-badge{
+  0%{opacity:0;transform:rotate(-14deg) scale(.4)}
+  70%{opacity:1;transform:rotate(4deg) scale(1.06)}
+  100%{transform:none}
+}
+@keyframes fx-result-shine{
+  0%{transform:translateX(-120%) skewX(-20deg)}
+  35%,100%{transform:translateX(330%) skewX(-20deg)}
+}
+.score-screen .score-total{
+  position:relative;
+  isolation:isolate;
+  animation:fx-result-pop .6s cubic-bezier(.3,1.4,.5,1) .05s backwards;
+}
+.score-screen .score-total::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:-26px;
+  border-radius:50%;
+  pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,#ffe49a80 0deg 7deg,transparent 7deg 22deg);
+  -webkit-mask:radial-gradient(circle,#000 42%,transparent 70%);
+          mask:radial-gradient(circle,#000 42%,transparent 70%);
+  animation:fx-result-spin 16s linear infinite;
+}
+.score-screen .score-grid>.score-card{animation:fx-result-rise .4s ease-out backwards}
+.score-screen .score-grid>.score-card:nth-child(1){animation-delay:.2s}
+.score-screen .score-grid>.score-card:nth-child(2){animation-delay:.25s}
+.score-screen .score-grid>.score-card:nth-child(3){animation-delay:.3s}
+.score-screen .score-grid>.score-card:nth-child(4){animation-delay:.35s}
+.score-screen .score-grid>.score-card:nth-child(5){animation-delay:.4s}
+.score-screen .score-grid>.score-card:nth-child(6){animation-delay:.45s}
+.duel-setup .duel-players>.duel-player.p1{animation:fx-result-slide-l .55s cubic-bezier(.2,.8,.2,1) backwards}
+.duel-setup .duel-players>.duel-player.p2{animation:fx-result-slide-r .55s cubic-bezier(.2,.8,.2,1) backwards}
+.duel-setup .duel-levels>button{animation:fx-result-pop-in .32s cubic-bezier(.3,1.3,.5,1) backwards}
+.duel-setup .duel-levels>button:nth-child(1){animation-delay:.3s}
+.duel-setup .duel-levels>button:nth-child(2){animation-delay:.34s}
+.duel-setup .duel-levels>button:nth-child(3){animation-delay:.38s}
+.duel-setup .duel-levels>button:nth-child(4){animation-delay:.42s}
+.duel-setup .duel-levels>button:nth-child(5){animation-delay:.46s}
+.duel-setup .duel-levels>button:nth-child(6){animation-delay:.5s}
+.duel-setup .duel-levels>button:nth-child(7){animation-delay:.54s}
+.duel-setup .duel-levels>button:nth-child(8){animation-delay:.58s}
+.duel-result{isolation:isolate}
+.duel-result::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 10% 16%,#ffd77f 0 3px,transparent 4px),
+    radial-gradient(circle at 88% 12%,#7fd0ff 0 3px,transparent 4px),
+    radial-gradient(circle at 76% 70%,#ff9a8a 0 3px,transparent 4px),
+    radial-gradient(circle at 18% 82%,#ffffff 0 2px,transparent 3px),
+    radial-gradient(circle at 52% 6%,#f4c868 0 2px,transparent 3px),
+    radial-gradient(circle at 94% 56%,#f4c868 0 3px,transparent 4px);
+  animation:fx-result-confetti 3s ease-in-out infinite alternate;
+}
+.duel-result h2{animation:fx-result-bounce .6s ease-out .05s backwards}
+.duel-result .duel-players>.duel-player{
+  position:relative;
+  animation:fx-result-rise .45s cubic-bezier(.2,.8,.2,1) .25s backwards;
+}
+.duel-result .duel-players>.duel-player:nth-child(2){animation-delay:.33s}
+.duel-result .duel-player.winner::after{
+  content:"✦";
+  position:absolute;
+  top:-14px;
+  right:-8px;
+  font-size:1.6rem;
+  line-height:1;
+  color:#ffd77f;
+  text-shadow:0 2px 0 #173448;
+  pointer-events:none;
+  animation:fx-result-twinkle 2.4s ease-in-out infinite;
+}
+.reward-done .reward-visual img{
+  transform-origin:35% 40%;
+  animation:fx-result-fade .6s ease-out backwards,fx-result-kenburns 18s ease-in-out infinite alternate;
+}
+.reward-done .reward-visual::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:2;
+  pointer-events:none;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,248,233,.55) 50%,transparent 60%);
+  transform:translateX(-100%);
+  animation:fx-result-sweep 1.1s cubic-bezier(.4,0,.2,1) .15s backwards;
+}
+.reward-done .reward-brief{
+  z-index:3;
+  animation:fx-result-card-in .55s cubic-bezier(.2,.8,.2,1) .25s backwards;
+}
+.reward-done .reward-brief .tag{
+  position:relative;
+  overflow:hidden;
+  animation:fx-result-badge .45s cubic-bezier(.3,1.3,.5,1) .45s backwards;
+}
+.reward-done .reward-brief .tag::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  left:0;
+  width:40%;
+  pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);
+  animation:fx-result-shine 4.5s ease-in-out 1s infinite;
+}
+}
+</style>
 </head>
 <body>
   <div class="shell">
@@ -819,7 +1205,7 @@ const guardianName=()=>state.playerName||"守護員";
 state.playerName=cleanName(state.playerName);
 function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify({version:SAVE_VERSION,playerName:state.playerName,unlocked:state.unlocked,done:[...state.done],hp:isCustomLevel()?(state.storyHearts?.hp??5):state.hp,eventPlan:state.eventPlan,eventSeen:[...state.eventSeen],pendingEvent:state.pendingEvent,feedback:state.feedback,lessonDuration:state.lessonDuration,learningRecords:state.learningRecords.slice(-80),cloudClass:state.cloudClass?{...state.cloudClass,customBank:state.cloudClass.customBank?{version:state.cloudClass.customBank.version,count:state.cloudClass.customBank.count,enabled:state.cloudClass.customBank.enabled}:null}:null}))}
 function addLearningRecord(type,data={}){state.learningRecords.push({type,level:state.level,at:new Date().toISOString(),...data});state.learningRecords=state.learningRecords.slice(-80);save()}
- function render(html,focus=true){app.innerHTML=html;enhanceActionButtons();const pause=document.querySelector("#pauseBtn");if(pause)pause.hidden=!state.teacherMode;cloud.syncPauseButton?.();if(focus)app.focus();updateProgress()}
+ function render(html,focus=true){app.innerHTML=html;enhanceActionButtons();const pause=document.querySelector("#pauseBtn");if(pause)pause.hidden=!state.teacherMode;cloud.syncPauseButton?.();if(focus)app.focus();updateProgress();runMotionFx()}
 /* 每個任務共用的進度條：出發準備 → 課前預測 → 單元導讀 → 調查線索 → 證據對決 → 區域學習單 */
 const FLOW_STEPS=["出發準備","課前預測","單元導讀","調查線索","證據對決","區域學習單"];
 function flowSteps(current){return `<ol class="flow-steps" aria-label="任務進度">${(isCustomLevel()?["出發準備","證據對決"]:FLOW_STEPS).map((name,i)=>`<li class="${i<current?"done":i===current?"current":""}"${i===current?' aria-current="step"':""}><span aria-hidden="true">${i<current?"✓":i+1}</span>${name}</li>`).join("")}</ol>`}
@@ -993,6 +1379,29 @@ function sfxPlay(kind){if(!sfxOn)return;try{const AC=window.AudioContext||window
    [2093,2637,3136,2349,3520,2794].forEach((f,i)=>note(f,.7+i*.11,.18,"sine",.22))},
   win:()=>{[523,659,784,1046,784,1046].forEach((f,i)=>note(f,i*.11,i===5?.6:.14,"square",.33))},
   lose:()=>{[392,330,262,196].forEach((f,i)=>note(f,i*.2,.34,"triangle",.5))}})[kind]?.()}catch{}}
+var motionFx=[];function runMotionFx(){const root=document.querySelector?.("#app");if(root)for(const f of motionFx||[])try{f(root)}catch{}}
+motionFx.push(root=>{
+  if(!root.querySelector?.('.score-screen .score-total b'))return;
+  if(!motionOK())return;
+  const el=root.querySelector('.score-screen .score-total b');
+  const original=el.textContent;
+  if(!/^\d+$/.test(original))return;
+  const target=parseInt(original,10);
+  if(!(target>0))return;
+  const dur=800,start=performance.now();
+  let done=false;
+  const finish=()=>{if(done)return;done=true;if(el.isConnected)el.textContent=original};
+  el.textContent="0";
+  setTimeout(finish,dur+120);
+  const step=now=>{
+    if(done)return;
+    if(!el.isConnected){done=true;return}
+    const t=Math.min(1,(now-start)/dur),eased=1-Math.pow(1-t,3);
+    if(t<1){el.textContent=String(Math.round(target*eased));requestAnimationFrame(step)}
+    else finish();
+  };
+  requestAnimationFrame(step);
+});
 const motionOK=()=>!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);
 const wait=ms=>new Promise(r=>setTimeout(r,motionOK()?ms:Math.min(ms,80)));
 const $b=s=>document.querySelector(s);
