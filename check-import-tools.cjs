@@ -29,6 +29,26 @@ function environment(ready) {
   ready.root.pdfjsLib={getDocument(){return {promise:Promise.resolve({numPages:1,getPage:async()=>({getTextContent:async()=>({items:[['選擇題',700],['(1)1. 選擇區塊',650],['①甲②乙③丙④丁',630],['閱讀題組',600],['(2)1. 閱讀區塊',550],['①春②夏③秋④冬',530]].map(([str,y])=>({str,transform:[1,0,0,1,0,y],height:12,hasEOL:true}))}),cleanup(){}})}),destroy:async()=>{}}}};
   const titled=await ready.api.readFile({name:'獨立標題.pdf',size:12,arrayBuffer:async()=>new Uint8Array(12)});
   assert.equal(titled.questions.length,1,'standalone major titles must survive page header filtering');assert.equal(titled.questions[0].prompt,'選擇區塊');
+  let scanReader;
+  ready.root.GUARDIAN_EXAM = { bindEditor(_host, tools) { scanReader = tools.readPdfText; } };
+  ready.api.bindEditor({ querySelector: () => ({}) });
+  const pageRows = [
+    [['選擇題',720],['(4)1. 請閱讀街道地圖，找出學校旁邊正確的地點名稱？',690],['①車站②公園③河流④博物館。',660],['某縣國民小學',785],['班級 座號 姓名',760]],
+    [['某縣國民小學',785],['班級 座號 姓名',760],['(1)2. 依照地圖的方向標，北方是哪一個方向？',700],['①上方②下方③左方④右方。',670]]
+  ];
+  ready.root.pdfjsLib = { getDocument() {
+    return { promise: Promise.resolve({numPages: pageRows.length, getPage: async n => ({
+      view: [0,0,595,842], getTextContent: async () => ({
+        items: pageRows[n-1].map(([str,y])=>({str,transform:[1,0,0,1,0,y],height:12,hasEOL:true}))
+      }), cleanup(){}
+    })}), destroy:async()=>{} };
+  } };
+  const arranged = await scanReader({arrayBuffer:async()=>new Uint8Array(12)}, "試卷", () => {
+    throw new Error("Selectable questions must bypass OCR");
+  });
+  assert.match(arranged, /^某縣國民小學[\s\S]+選擇題/);
+  assert.equal(arranged.match(/某縣國民小學/g).length,1,'running headings are relocated and repeated copies are dropped');
+  assert.match(arranged, /博物館。\n\f\n\(1\)2\./);
   assert.equal(ready.calls(),0,'preloaded tools must work even when dynamic script loading is blocked');
   const fallback=environment(false);
   assert.equal((await fallback.api.readFile(excel)).questions.length,1);

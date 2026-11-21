@@ -37,10 +37,13 @@
 
   // 資料庫還沒更新到新版 schema 時，新函式不存在，PostgREST 回 404
   const missingFunction = err => err && err.status === 404;
-  function classSetupError(err) {
+  function classSetupError(err, bank = null) {
     if (err.code === "PGRST203" || err.code === "42725") return `雲端建班函式版本衝突（${err.code}）。請在 Supabase 執行 supabase/fix-class-creation.sql，再重新整理遊戲。`;
     if (err.message === "custom_schema_missing" || missingFunction(err)) return "雲端建班功能尚未更新，請在 Supabase 執行最新版 supabase/schema.sql。";
-    const known = {password_too_short:"管理密碼至少要 6 個字。",invalid_name:"班級名稱請填 1～40 個字。",invalid_question_count:"每關題數請填 1～15 的整數。",invalid_custom_count:"自訂題數超出題庫範圍，請重新設定。",invalid_custom_bank:"題庫資料不完整，請重新轉換並採用結果。",invalid_custom_question:"題目資料未通過雲端檢查，請核對四個選項與答案。",duplicate_custom_question:"題庫包含重複題目，請整理後重新匯入。",invalid_class_response:"雲端未回傳有效班級代碼，請保留錯誤訊息供排查。"};
+    if (err.message === "invalid_custom_question" && bank?.questions.some(question => question.options.length === 2)) {
+      return "是非題需要支援二選一的資料庫版本。請在 Supabase 執行最新版 supabase/schema.sql，再核對題目與答案。";
+    }
+    const known = {password_too_short:"管理密碼至少要 6 個字。",invalid_name:"班級名稱請填 1～40 個字。",invalid_question_count:"每關題數請填 1～15 的整數。",invalid_custom_count:"自訂題數超出題庫範圍，請重新設定。",invalid_custom_bank:"題庫資料不完整，請重新轉換並採用結果。",invalid_custom_question:"題目資料未通過雲端檢查，請核對題目的選項與答案。",duplicate_custom_question:"題庫包含重複題目，請整理後重新匯入。",invalid_class_response:"雲端未回傳有效班級代碼，請保留錯誤訊息供排查。"};
     if (known[err.message]) return known[err.message];
     if (err.code === "NETWORK_ERROR") return "無法連線到雲端，請確認網路後再試（NETWORK_ERROR）。";
     if (err.status === 401 || err.status === 403) return "雲端拒絕存取，請檢查公開金鑰與資料庫權限。";
@@ -278,7 +281,7 @@
         <section class="teacher-step create-step"><h3><span class="num">4</span>管理密碼</h3>
           <p class="learn-note">查看全班作答、修改開放關卡時要輸入。請自行保存，遺失後無法查回。</p>
           <div class="password-pair"><label for="newPass">管理密碼（至少 6 個字）<input class="name-input" id="newPass" type="password" autocomplete="new-password"></label><label for="newPass2">再輸入一次<input class="name-input" id="newPass2" type="password" autocomplete="new-password"></label></div></section>
-        <section class="teacher-step create-step"><h3><span class="num">5</span>老師自訂題目<small>選填</small></h3><p>匯入後可開放帆船上的「未知地點」，題數獨立設定。</p><div id="newCustomEditor">${window.GUARDIAN_CUSTOM?.editorMarkup() || ""}</div></section>
+        <section class="teacher-step create-step"><h3><span class="num">5</span>試卷與自訂題庫<small>選填</small></h3><div id="newCustomEditor">${window.GUARDIAN_CUSTOM?.editorMarkup() || ""}</div></section>
         <p class="name-error" id="createError" role="alert" aria-live="polite"></p>
         <button class="primary create-go" type="submit" id="createGo">建立班級</button>
       </form>
@@ -332,7 +335,7 @@
         result.scrollIntoView?.({ block: "center" });
         document.querySelector("#openNew").onclick = () => showReport();
         document.querySelector("#createAnother").onclick = showTeacher;
-      } catch (err) { error.textContent = `建立失敗：${classSetupError(err)}`; }
+      } catch (err) { error.textContent = `建立失敗：${classSetupError(err, customBank)}`; }
       finally { go.disabled = false; go.textContent = "建立班級"; }
     };
   }
@@ -407,7 +410,7 @@
         <p class="learn-note">勾選的關卡，加入這個班級的學生可以直接遊玩，不用先破前面的關卡。學生下次打開遊戲就會更新。</p>
         ${levelPicker("classLevels", classSettings.openLevels)}
         <div class="row"><button class="primary" type="button" id="saveLevels">儲存開放的關卡</button><span class="status-inline" id="levelsStatus" role="status" aria-live="polite"></span></div></details>
-      <details class="class-settings no-print"><summary><b>老師自訂題庫・未知地點</b></summary><div id="classCustomEditor">${window.GUARDIAN_CUSTOM?.editorMarkup() || ""}</div><button class="primary" type="button" id="saveCustomBank">儲存自訂題庫與題數</button><p id="customBankStatus" role="status" aria-live="polite"></p></details>
+      <details class="class-settings no-print"><summary><b>試卷與自訂題庫</b></summary><div id="classCustomEditor">${window.GUARDIAN_CUSTOM?.editorMarkup() || ""}</div><button class="primary" type="button" id="saveCustomBank">儲存自訂題庫與題數</button><p id="customBankStatus" role="status" aria-live="polite"></p></details>
       <div class="cloud-toolbar no-print"><label for="levelFilter">查看範圍</label><select id="levelFilter"><option value="">全部關卡</option>${levels.map((l, i) => `<option value="${i + 1}"${level === i + 1 ? " selected" : ""}>${esc(levelName(i + 1))}</option>`).join("")}<option value="9"${level === 9 ? " selected" : ""}>隱藏關卡・未知地點</option></select>
         <button class="secondary" id="reportRefresh">重新整理</button><button class="secondary" id="exportStudents">匯出學生總覽 CSV</button><button class="secondary" id="exportRaw">匯出原始紀錄 CSV</button><button class="secondary" id="reportPrint">列印</button></div>
       ${students.length ? "" : `<p class="summary-empty">這個範圍還沒有作答紀錄。學生要先按「加入班級」並完成任務，紀錄才會出現。</p>`}
@@ -436,8 +439,9 @@
     const editor = window.GUARDIAN_CUSTOM?.bindEditor(document.querySelector("#classCustomEditor"), cls.custom_bank);
     document.querySelector("#saveCustomBank").onclick = async e => {
       const button = e.currentTarget, status = document.querySelector("#customBankStatus"); button.disabled = true;
-      try { const bank = editor?.getBank() || null; await rpc("set_custom_bank", { p_code: teacherAuth.code, p_password: teacherAuth.password, p_bank: bank }); status.textContent = bank?.enabled ? `已開放未知地點，每場 ${bank.count} 題。學生回到地圖就能看到。` : "已儲存，未知地點目前關閉。"; }
-      catch (err) { status.textContent = missingFunction(err) ? "請先在 Supabase 執行最新版 supabase/schema.sql。" : `儲存失敗：${err.message}`; }
+      let bank;
+      try { bank = editor?.getBank() || null; await rpc("set_custom_bank", { p_code: teacherAuth.code, p_password: teacherAuth.password, p_bank: bank }); status.textContent = bank?.enabled ? `已開放未知地點，每場 ${bank.count} 題。學生回到地圖就能看到。` : "已儲存，未知地點目前關閉。"; }
+      catch (err) { status.textContent = missingFunction(err) ? "請先在 Supabase 執行最新版 supabase/schema.sql。" : `儲存失敗：${err.message === "invalid_custom_question" ? classSetupError(err, bank) : err.message}`; }
       finally { button.disabled = false; }
     };
     document.querySelector("#saveLevels").onclick = async e => {

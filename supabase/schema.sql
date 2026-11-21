@@ -241,6 +241,7 @@ declare
   v_code text := public.verify_class_password(p_code, p_password);
   q jsonb;
   v_count int;
+  v_options int;
 begin
   if p_bank is not null and p_bank <> 'null'::jsonb then
     if jsonb_typeof(p_bank) <> 'object' or octet_length(p_bank::text) > 12000000
@@ -257,8 +258,10 @@ begin
          or coalesce(q ->> 'answerIndex', '') !~ '^[0-3]$'
          or jsonb_typeof(q -> 'answerIndex') is distinct from 'number'
          or jsonb_typeof(q -> 'options') is distinct from 'array' then raise exception 'invalid_custom_question'; end if;
-      if jsonb_array_length(q -> 'options') <> 4 or
-         (select count(distinct btrim(value #>> '{}')) from jsonb_array_elements(q -> 'options')) <> 4 or
+      v_options := jsonb_array_length(q -> 'options');
+      if (v_options <> 4 and (q -> 'options') <> '["是","否"]'::jsonb) or
+         (q ->> 'answerIndex')::int >= v_options or
+         (select count(distinct btrim(value #>> '{}')) from jsonb_array_elements(q -> 'options')) <> v_options or
          exists(select 1 from jsonb_array_elements(q -> 'options') where jsonb_typeof(value) <> 'string' or char_length(btrim(value #>> '{}')) not between 1 and 1000) or
          char_length(coalesce(q ->> 'explanation', '')) > 4000 then raise exception 'invalid_custom_question'; end if;
     end loop;
