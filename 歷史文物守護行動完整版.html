@@ -734,6 +734,286 @@
 .summary-list>.summary-unit:nth-child(3){animation-delay:.41s}
 .summary-list>.summary-unit:nth-child(n+4){animation-delay:.49s}
 }
+/* 選關地圖：裝飾在關卡按鈕下方，使用原海圖的座標與圖像。 */
+.map-level:not(:disabled):focus-visible .map-label{outline:3px solid #ffe08a;outline-offset:3px}
+@media(hover:hover) and (pointer:fine){
+  .map-level:not(:disabled):hover .map-label{outline:2px solid #ffe08a;outline-offset:2px}
+}
+.map-sea-motion{display:none}
+@media(prefers-reduced-motion:no-preference){
+  .map-sea-motion{display:block;position:absolute;inset:0;z-index:1;pointer-events:none}
+  .map-art-motion{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
+
+  /* 帆面和船身各自受風，港內兩艘船的搖幅比較小。 */
+  .map-ship{
+    animation:map-ship-rock var(--ship-period,6.4s) ease-in-out infinite;
+    animation-delay:var(--ship-delay,0s);
+  }
+  .map-ship-port{animation-name:map-ship-moor}
+  .map-sail,.map-sail-light{
+    animation:map-sail-billow var(--ship-period,6.4s) ease-in-out infinite;
+    animation-delay:var(--ship-delay,0s);
+  }
+  .map-sail-light{fill:#fff4bc;animation-name:map-sail-light}
+  .map-wake{
+    fill:none;stroke:#e4fbff;opacity:0;transform-box:fill-box;transform-origin:center;
+    animation:map-ship-wake 4.1s ease-out infinite;animation-delay:var(--wake-delay,0s);
+  }
+  @keyframes map-ship-rock{
+    0%,100%{transform:translate(-1px,2px) rotate(-4deg)}
+    29%{transform:translate(2px,-5px) rotate(5.5deg)}
+    57%{transform:translate(-1px,3px) rotate(-5deg)}
+    76%{transform:translate(1px,-2px) rotate(2.5deg)}
+  }
+  @keyframes map-ship-moor{
+    0%,100%{transform:translateY(1px) rotate(-2.5deg)}
+    30%{transform:translateY(-4px) rotate(4.25deg)}
+    57%{transform:translateY(2px) rotate(-3.65deg)}
+    75%{transform:translateY(-1px) rotate(2deg)}
+  }
+  @keyframes map-sail-billow{
+    0%,42%,100%{transform:none}
+    16%,56%{transform:translate(1px,-1px) skewX(-7deg) scaleX(1.1)}
+    26%,68%{transform:translateX(-1px) skewX(5deg) scaleX(.95)}
+    81%{transform:skewX(-4deg) scaleX(1.04)}
+  }
+  @keyframes map-sail-light{
+    0%,42%,100%{opacity:.08}
+    16%,55%{opacity:.52}
+    28%,68%{opacity:.18}
+  }
+  @keyframes map-ship-wake{
+    0%{transform:scale(.82,.75);opacity:0}
+    24%{opacity:.83}
+    80%,100%{transform:scale(1.42,1.65);opacity:0}
+  }
+
+  /* 樹冠保留各處的原畫剪影，沿不同方向受陣風推動。 */
+  .map-palm{
+    animation:map-palm-sway var(--wind-period,7.8s) ease-in-out infinite;
+    animation-delay:var(--wind-delay,0s);
+  }
+  .map-forest{
+    animation:map-forest-breeze var(--wind-period,8.5s) ease-in-out infinite;
+    animation-delay:var(--wind-delay,0s);
+  }
+  .map-wind-leaf{
+    opacity:0;transform-box:fill-box;transform-origin:center;
+    animation:map-wind-leaf 7.8s ease-in-out infinite;animation-delay:var(--wind-delay,0s);
+  }
+  @keyframes map-palm-sway{
+    0%,48%,100%{transform:none}
+    14%,33%{transform:skewX(-17deg) rotate(4deg)}
+    24%,40%{transform:skewX(8deg) rotate(-4deg)}
+    66%{transform:skewX(-9deg)}
+    76%{transform:skewX(4deg)}
+  }
+  @keyframes map-forest-breeze{
+    0%,44%,100%{transform:none}
+    13%,31%{transform:translate(-2px,-1px) skewX(var(--bend,-3deg)) scaleY(1.025)}
+    22%,38%{transform:translate(1.5px,.5px) skewX(calc(var(--bend,-3deg) * -.45))}
+    69%{transform:translate(-1px,0) skewX(calc(var(--bend,-3deg) * .5))}
+    79%{transform:skewX(calc(var(--bend,-3deg) * -.24))}
+  }
+  @keyframes map-wind-leaf{
+    0%,100%{transform:translate(0,5px) rotate(-22deg);opacity:0}
+    9%{opacity:.88}
+    20%{transform:translate(25px,-21px) rotate(65deg);opacity:.96}
+    36%{transform:translate(52px,-7px) rotate(150deg);opacity:.65}
+    49%,99%{transform:translate(75px,-26px) rotate(237deg);opacity:0}
+  }
+
+  /* 海鷗的身體固定在原處，羽翼沿身側的樞紐拍動。 */
+  .map-gull-wing{
+    animation:map-gull-flap var(--wing-period,4.8s) ease-in-out infinite;
+    animation-delay:var(--wing-delay,0s);
+  }
+  @keyframes map-gull-flap{
+    0%,51%,100%{transform:none}
+    10%,31%{transform:rotate(var(--wing-fold,-14deg)) scale(.97,.54)}
+    20%,42%{transform:rotate(var(--wing-stretch,8deg)) scale(1.04,1.16)}
+    77%{transform:rotate(calc(var(--wing-stretch,8deg) * .5)) scale(1,1.08)}
+  }
+
+  /* 水流順著瀑布落下，在潭面散成霧和漣漪。 */
+  .map-waterfall-ribbon,.map-waterfall-flow,.map-waterfall-thread{fill:none;stroke-linecap:round}
+  .map-waterfall-ribbon{stroke:#87dcfb;opacity:.54;animation:map-waterfall-pulse 2.1s ease-in-out infinite alternate}
+  .map-waterfall-flow{
+    stroke:#f1ffff;stroke-dasharray:12 19;opacity:.87;
+    animation:map-waterfall-run 1.05s linear infinite;
+  }
+  .map-waterfall-thread{
+    stroke:#d6f8ff;stroke-dasharray:7 14;opacity:.76;
+    animation:map-waterfall-thread-run .73s linear infinite;
+  }
+  .map-waterfall-mist{
+    transform-box:fill-box;transform-origin:center;opacity:0;
+    animation:map-fall-mist 2.35s ease-out infinite;animation-delay:var(--mist-delay,0s);
+  }
+  @keyframes map-waterfall-run{to{stroke-dashoffset:-31}}
+  @keyframes map-waterfall-thread-run{to{stroke-dashoffset:-21}}
+  @keyframes map-waterfall-pulse{to{opacity:.19}}
+  @keyframes map-fall-mist{
+    0%{transform:scale(.66,.67);opacity:0}
+    18%{opacity:.82}
+    88%,100%{transform:translate(0,-5px) scale(1.85,1.45);opacity:0}
+  }
+
+  /* 炊煙一縷一縷升起。村民走在原畫的村間小徑上。 */
+  .map-chimney-smoke{
+    fill:url(#map-smoke-color);opacity:0;transform-box:fill-box;transform-origin:center;
+    animation:map-chimney-drift 7.8s ease-out infinite;animation-delay:var(--smoke-delay,0s);
+  }
+  .map-villager{
+    offset-rotate:0deg;
+    animation:map-villager-walk var(--walk-period,11s) linear infinite;
+    animation-delay:var(--walk-delay,0s);
+  }
+  .map-villager-a{offset-path:path("M420 608 Q455 600 477 612 T516 622 Q534 624 551 615")}
+  .map-villager-b{offset-path:path("M689 610 Q663 601 643 607 T588 618")}
+  .map-villager-port{offset-path:path("M245 760 Q265 763 276 773 T310 794")}
+  .map-villager-torso{animation:map-walk-step .48s ease-in-out infinite}
+  .map-villager-limb{
+    transform-origin:0 8px;animation:map-walk-stride .48s ease-in-out infinite;
+  }
+  .map-villager-limb-back{animation-delay:-.24s}
+  @keyframes map-chimney-drift{
+    0%,64%,100%{transform:translate(0,0) scale(.55);opacity:0}
+    14%{opacity:.94}
+    37%{transform:translate(10px,-29px) scale(1.65);opacity:.76}
+    63%{transform:translate(23px,-55px) scale(2.45);opacity:0}
+  }
+  @keyframes map-villager-walk{
+    0%{offset-distance:0%;opacity:0}
+    7%,90%{opacity:1}
+    97%,100%{offset-distance:100%;opacity:0}
+  }
+  @keyframes map-walk-step{50%{transform:translateY(-1.25px)}}
+  @keyframes map-walk-stride{
+    0%,100%{transform:rotate(-28deg)}
+    50%{transform:rotate(28deg)}
+  }
+
+  /* 光暈繞著塔頂轉動，以暖金色維持原畫的氛圍。 */
+  .map-castle-aura{
+    transform-origin:1229px 121px;animation:map-castle-aura 9s ease-in-out infinite;
+  }
+  .map-castle-halo{
+    fill:none;stroke-linecap:round;transform-origin:1229px 121px;
+    animation:map-castle-halo 9s ease-in-out infinite;
+  }
+  .map-castle-halo-inner{animation-delay:-3.1s;animation-direction:reverse}
+  .map-castle-spark{
+    fill:#fff4bd;transform-box:fill-box;transform-origin:center;
+    animation:map-castle-spark 8s ease-in-out infinite;animation-delay:var(--spark-delay,0s);
+  }
+  @keyframes map-castle-aura{
+    0%,100%{transform:scale(.8);opacity:.44}
+    46%{transform:scale(1.23);opacity:.83}
+  }
+  @keyframes map-castle-halo{
+    0%,100%{transform:rotate(-27deg) scale(.81);stroke-dashoffset:0;opacity:.46}
+    39%{transform:rotate(6deg) scale(1.12);stroke-dashoffset:-43;opacity:.97}
+    73%{transform:rotate(28deg) scale(1.2);stroke-dashoffset:-78;opacity:.66}
+  }
+  @keyframes map-castle-spark{
+    0%,60%,100%{transform:scale(.45);opacity:0}
+    22%{transform:scale(1.35);opacity:.95}
+    38%{transform:scale(.85);opacity:.62}
+  }
+
+  /* 海岸浪頭先往岸上推進，再在礁岸邊消散。 */
+  .map-shore-surge{
+    fill:none;stroke-linecap:round;opacity:0;
+    animation:map-shore-surge var(--wave-period,5.9s) ease-out infinite;
+    animation-delay:var(--wave-delay,0s);
+  }
+  .map-shore-wash{stroke:#9ce5fb;stroke-width:8;stroke-dasharray:47 21 25 13;opacity:.52}
+  .map-shore-line{stroke:#ebffff;stroke-width:3.6;stroke-dasharray:52 17 13 99}
+  .map-shore-echo{stroke:#dcfaff;stroke-width:1.4;stroke-dasharray:15 26 6 65;opacity:.69}
+  .map-shore-spray{
+    fill:#f0ffff;opacity:0;transform-box:fill-box;transform-origin:center;
+    animation:map-shore-spray var(--wave-period,5.9s) ease-out infinite;
+    animation-delay:var(--wave-delay,0s);
+  }
+  @keyframes map-shore-spray{
+    0%,33%{transform:scale(.65);opacity:0}
+    49%{transform:translate(4px,-3px) scale(1.05);opacity:.91}
+    71%,100%{transform:translate(7px,-5px) scale(1.35);opacity:0}
+  }
+  .map-wave-crest{
+    fill:none;stroke-linecap:round;opacity:0;
+    animation:map-wave-roll 7.4s ease-in-out infinite;animation-delay:var(--wave-delay,0s);
+  }
+  .map-wave-crest-line{stroke:#e6ffff;stroke-width:4;stroke-dasharray:48 21 20 133}
+  .map-wave-crest-trail{stroke:#b2edff;stroke-width:2.3;stroke-dasharray:19 17 43 123;opacity:.73}
+  .map-sea-glint{
+    position:absolute;width:17%;height:3.1%;border-radius:50%;opacity:0;
+    background:radial-gradient(ellipse,#dcf7ffc9 0,transparent 70%);
+    animation:map-sea-drift 7.6s ease-in-out infinite;
+  }
+  .map-sea-glint-west{left:7%;top:40%;animation-delay:-2s}
+  .map-sea-glint-east{left:72%;top:68%;animation-delay:-5s}
+  @keyframes map-shore-surge{
+    0%{transform:translate(0,0);stroke-dashoffset:38;opacity:0}
+    26%{opacity:.77}
+    47%{transform:translate(var(--shore-x),var(--shore-y));opacity:.98}
+    74%,100%{transform:translate(var(--shore-x),var(--shore-y));stroke-dashoffset:-102;opacity:0}
+  }
+  @keyframes map-wave-roll{
+    0%{stroke-dashoffset:41;opacity:0}
+    23%,40%{opacity:.92}
+    77%,100%{stroke-dashoffset:-158;opacity:0}
+  }
+  @keyframes map-sea-drift{
+    0%,100%{transform:translate(-18%,0) rotate(-14deg);opacity:0}
+    36%{opacity:.67}
+    79%{transform:translate(34%,-50%) rotate(-14deg);opacity:0}
+  }
+
+  /* 每組海豚以入水點為原點，吻端、浪圈和濺水共用相同的座標。 */
+  .map-dolphin-entry{--dolphin-period:6.2s}
+  .map-dolphin,.map-splash,.map-splash-echo,.map-splash-drops{
+    opacity:0;transform-origin:0 0;
+    animation-duration:var(--dolphin-period);
+    animation-delay:var(--dolphin-delay,0s);
+    animation-iteration-count:infinite;
+  }
+  .map-dolphin{animation-name:map-dolphin-leap;animation-timing-function:linear}
+  .map-splash,.map-splash-echo,.map-splash-drops{animation-timing-function:ease-out}
+  .map-splash{animation-name:map-dolphin-splash}
+  .map-splash-echo{animation-name:map-dolphin-splash-echo}
+  .map-splash-drops{animation-name:map-dolphin-drops}
+  @keyframes map-dolphin-leap{
+    0%,100%{transform:translate(-48px,12px) rotate(-22deg);opacity:0}
+    3%{transform:translate(-41px,-12px) rotate(-20deg);opacity:.94}
+    6%{transform:translate(-33px,-28px) rotate(-12deg);opacity:1}
+    9%{transform:translate(-25px,-33px) rotate(2deg);opacity:1}
+    12%{transform:translate(-16px,-27px) rotate(20deg);opacity:1}
+    15%{transform:translate(-6px,-13px) rotate(39deg);opacity:1}
+    17%{transform:translate(0,0) rotate(51deg);opacity:1}
+    19%{transform:translate(5px,14px) rotate(53deg);opacity:.91}
+    22%{transform:translate(10px,34px) rotate(56deg);opacity:.29}
+    24%,99%{transform:translate(12px,43px) rotate(57deg);opacity:0}
+  }
+  @keyframes map-dolphin-splash{
+    0%,17%{transform:scale(.34,.48);opacity:0}
+    19%{transform:scale(.64,.78);opacity:.97}
+    26%{transform:scale(1.2,1.05);opacity:.81}
+    37%,100%{transform:scale(1.85,1.37);opacity:0}
+  }
+  @keyframes map-dolphin-splash-echo{
+    0%,21%{transform:scale(.35,.46);opacity:0}
+    25%{transform:scale(.74,.75);opacity:.65}
+    42%,100%{transform:scale(1.82,1.24);opacity:0}
+  }
+  @keyframes map-dolphin-drops{
+    0%,17%{transform:translateY(1px) scale(.38);opacity:0}
+    20%{transform:translateY(-2px) scale(.9);opacity:.95}
+    24%{transform:translateY(-8px) scale(1.18);opacity:.79}
+    31%,100%{transform:translateY(2px) scale(1.44);opacity:0}
+  }
+}
 @media (prefers-reduced-motion: no-preference){
 @keyframes fx-journey-pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
 @keyframes fx-journey-fade{from{opacity:0}to{opacity:1}}
@@ -762,7 +1042,7 @@
 .adventure-map>.map-level:nth-child(7){--d:.3s}
 .adventure-map>.map-level:nth-child(8){--d:.35s}
 .adventure-map>.map-level:nth-child(9){--d:.4s}
-.adventure-map .map-level .marker{position:relative;animation:fx-journey-pop .45s cubic-bezier(.2,.9,.3,1.2) var(--d,0s) backwards}
+.adventure-map .map-level:not(.map-stamp) .marker{position:relative;animation:fx-journey-pop .45s cubic-bezier(.2,.9,.3,1.2) var(--d,0s) backwards}
 .adventure-map .map-level .map-label{animation:fx-journey-fade .35s ease var(--d,0s) backwards}
 .adventure-map .map-level .map-label{animation-delay:calc(var(--d,0s) + .1s)}
 .adventure-map .map-level .map-number{animation:fx-journey-pop .3s ease calc(var(--d,0s) + .12s) backwards}
@@ -1256,8 +1536,329 @@ function showTeacherMode(){state.teacherMode=true;state.classroomUnitKey=null;co
 const classroomLevelFor=key=>curriculum.units.findIndex(item=>item.key===key)+1;
 /* 本機作答分析：這台裝置的課前預測分布、最常選錯的選項、學習單確定程度與內容 */
 function showLearningSummary(){const records=state.learningRecords,counts=type=>records.filter(r=>r.type===type).length,exits=records.filter(r=>r.type==="exit"),unitName=r=>{const u=curriculum.units.find(x=>x.key===r.unitKey);return u?`${u.term}・第 ${u.unit} 單元・${u.title}`:`第 ${r.level} 關・${levels[r.level-1]?.title||""}`},groups=[...new Set(exits.map(unitName))],when=at=>{const d=new Date(at);return isNaN(d)?"":`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`},tally=(list,key)=>{const m=new Map();list.forEach(x=>{const k=key(x);if(k)m.set(k,(m.get(k)||0)+1)});return m},bars=(title,map,order)=>{const total=[...map.values()].reduce((a,b)=>a+b,0);return `<article class="analysis-card"><h4>${title}</h4>${total?(order||[...map.keys()]).map(k=>{const n=map.get(k)||0,p=Math.round(n/total*100);return `<div class="bar-row"><span>${esc(k)}</span><i style="--w:${p}%"></i><b>${n}</b></div>`}).join(""):"<p>還沒有紀錄。</p>"}</article>`},prompts=new Map(Object.values(questionBank).flat().map(q=>[q.id,q.prompt])),wrongs=[...tally(records.filter(r=>r.type==="misconception"),r=>r.question&&r.choice?r.question+"\u0000"+r.choice:"").entries()].sort((a,b)=>b[1]-a[1]).slice(0,5);render(`<section class="screen"><div class="eyebrow">本機匿名紀錄・不會上傳</div><h2>本機作答分析</h2><div class="learning-strip summary-counts"><div><small>課前預測</small><b>${counts("prediction")} 次</b></div><div><small>答錯紀錄</small><b>${counts("misconception")} 次</b></div><div><small>區域學習單</small><b>${counts("exit")} 份</b></div></div><div class="analysis-grid">${bars("課前預測",tally(records.filter(r=>r.type==="prediction"),r=>r.answer),["同意","不確定","不同意"])}${bars("學習單的確定程度",tally(exits,r=>r.confidence),["還要查資料","大致確定","能向同學解釋"])}</div><h3>最常選錯的選項</h3>${wrongs.length?`<div class="table-scroll"><table class="cloud-table"><thead><tr><th>題目</th><th>選錯的選項</th><th>次數</th></tr></thead><tbody>${wrongs.map(([k,n])=>{const [id,choice]=k.split("\u0000");return `<tr><td>${esc(prompts.get(id)||id)}</td><td>${esc(choice)}</td><td>${n}</td></tr>`}).join("")}</tbody></table></div>`:`<p class="summary-empty">還沒有答錯紀錄。</p>`}<h3>學生寫下的區域學習單</h3>${groups.length?`<div class="summary-list">${groups.map(g=>`<section class="summary-unit"><h3>${esc(g)}</h3>${exits.filter(r=>unitName(r)===g).reverse().map(r=>`<article class="summary-entry"><div class="meta"><span>課前：${esc(r.prediction||"未作答")}</span><span>確定程度：${esc(r.confidence||"—")}</span><span>${when(r.at)}</span></div>${esc(r.response||"")}</article>`).join("")}</section>`).join("")}</div>`:`<p class="summary-empty">目前還沒有區域學習單。學生打敗敵人、交出學習單後，回答會出現在這裡。</p>`}<p>本機紀錄只保留最近 80 筆，不分學生、不含帳號或班級代碼。要依座號分析全班，請使用「全班作答分析」。</p><div class="row"><button class="secondary" id="summaryBack">返回教師課堂模式</button><div class="row"><button class="secondary" id="summaryPrint">列印</button><button class="primary" id="summaryExport">匯出 JSON</button></div></div></section>`);document.querySelector("#summaryBack").onclick=showTeacherMode;document.querySelector("#summaryPrint").onclick=()=>window.print();document.querySelector("#summaryExport").onclick=()=>{const blob=new Blob([JSON.stringify({version:SAVE_VERSION,exportedAt:new Date().toISOString(),records},null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="歷史文物守護行動-學習摘要.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}
+const mapDolphinPod = `
+      <g class="map-dolphin-entry" transform="translate(198 554)" style="--dolphin-delay:-0.24s">
+        <g clip-path="url(#map-dolphin-above-water)">
+          <g class="map-dolphin">
+            <use href="#map-motion-art" clip-path="url(#map-dolphin-north)" transform="translate(-174 -520)"/>
+          </g>
+        </g>
+        <use href="#map-splash-rings" class="map-splash"/>
+        <use href="#map-splash-echo-ring" class="map-splash-echo"/>
+        <use href="#map-splash-specks" class="map-splash-drops"/>
+      </g>
+      <g class="map-dolphin-entry" transform="translate(226 583)" style="--dolphin-delay:0.09s">
+        <g clip-path="url(#map-dolphin-above-water)">
+          <g class="map-dolphin">
+            <use href="#map-motion-art" clip-path="url(#map-dolphin-middle)" transform="translate(-206 -555)"/>
+          </g>
+        </g>
+        <use href="#map-splash-rings" class="map-splash"/>
+        <use href="#map-splash-echo-ring" class="map-splash-echo"/>
+        <use href="#map-splash-specks" class="map-splash-drops"/>
+      </g>
+      <g class="map-dolphin-entry" transform="translate(255 609)" style="--dolphin-delay:0.44s">
+        <g clip-path="url(#map-dolphin-above-water)">
+          <g class="map-dolphin">
+            <use href="#map-motion-art" clip-path="url(#map-dolphin-south)" transform="translate(-247 -579)"/>
+          </g>
+        </g>
+        <use href="#map-splash-rings" class="map-splash"/>
+        <use href="#map-splash-echo-ring" class="map-splash-echo"/>
+        <use href="#map-splash-specks" class="map-splash-drops"/>
+      </g>
+`;
+const mapSeaMotion = `<div class="map-sea-motion" aria-hidden="true">
+  <svg class="map-art-motion" viewBox="0 0 1529 1028" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+        <defs>
+          <image id="map-motion-art" href="assets/adventure-map-taiwan.webp" width="1529" height="1028"/>
+          <filter id="map-motion-feather" x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="5"/></filter>
+          <clipPath id="map-ship-north"><use href="#map-ship-north-shape"/></clipPath>
+          <clipPath id="map-ship-south"><use href="#map-ship-south-shape"/></clipPath>
+          <clipPath id="map-sail-north"><path d="M177 240 192 179 213 187 208 227 201 244ZM213 247 228 174 240 180 249 209 246 243ZM250 243 254 211 277 242Z"/></clipPath>
+          <clipPath id="map-sail-south"><path d="M1227 878 1243 817 1259 827 1265 879ZM1272 878 1273 825 1288 834 1298 878Z"/></clipPath>
+          <mask id="map-water-over-north" maskUnits="userSpaceOnUse" x="112" y="138" width="196" height="159"><use href="#map-ship-north-shape" fill="white" stroke="white" stroke-width="18" filter="url(#map-motion-feather)"/></mask>
+          <mask id="map-water-over-south" maskUnits="userSpaceOnUse" x="1174" y="776" width="165" height="153"><use href="#map-ship-south-shape" fill="white" stroke="white" stroke-width="18" filter="url(#map-motion-feather)"/></mask>
+          <path id="map-ship-north-shape" d="M128 226 147 230 181 169 190 165 204 172 225 151 253 169 252 179 238 176 252 197 271 202 269 208 264 208 287 242 294 245 280 258 266 272 243 280 175 279 151 265 138 250Z"/>
+          <path id="map-ship-south-shape" d="M1191 861 1203 869 1238 811 1243 805 1250 809 1266 789 1296 807 1285 814 1271 806 1283 825 1290 820 1295 840 1302 879 1319 875 1321 886 1305 899 1295 912 1245 915 1216 904 1204 891Z"/>
+          <clipPath id="map-palm-shore"><path d="M395 469 402 458 416 452 428 457 439 468 432 486 425 486 425 498 417 500 411 483 402 487Z"/></clipPath>
+          <clipPath id="map-palm-fields"><path d="M585 641 591 629 606 623 624 629 634 641 626 660 618 658 618 686 608 688 604 654 593 659Z"/></clipPath>
+          <clipPath id="map-palm-hill"><path d="M1237 222 1243 210 1260 207 1277 216 1278 239 1268 245 1268 256 1259 259 1253 239 1240 243Z"/></clipPath>
+          <clipPath id="map-dolphin-north"><path d="M103 554 101 545 110 536 117 522 125 516 120 510 130 507 138 512 151 507 163 511 176 520 174 525 161 529 150 535 147 543 142 543 143 535 130 540 118 548 113 556 109 550Z"/></clipPath>
+          <clipPath id="map-dolphin-middle"><path d="M125 582 124 575 135 571 144 558 150 552 149 544 161 541 168 545 180 541 195 545 208 555 207 560 194 562 184 567 181 576 175 577 175 570 153 576 141 587 136 587 137 579Z"/></clipPath>
+          <clipPath id="map-dolphin-south"><path d="M176 600 175 594 185 590 194 579 202 574 198 567 207 562 218 567 230 565 240 570 249 579 246 584 234 585 226 590 224 598 218 598 217 592 199 596 190 604 185 604 186 598Z"/></clipPath>
+          <mask id="map-water-over-dolphins" maskUnits="userSpaceOnUse" x="83" y="488" width="185" height="137">
+            <path d="M101 552 125 512 150 505 176 519 171 538 194 542 210 555 207 564 234 565 250 579 226 596 189 605 174 598 179 584 150 586 137 590 121 581 133 550 108 558Z" fill="white" stroke="white" stroke-width="14" filter="url(#map-motion-feather)"/>
+          </mask>
+          <path id="map-port-a-shape" d="M112 813 124 818 146 776 151 768 157 774 170 758 187 764 193 773 181 776 192 815 199 819 187 833 168 838 134 837 122 829Z"/>
+          <path id="map-port-b-shape" d="M170 849 185 850 204 811 208 804 217 808 228 793 240 799 249 806 244 815 253 844 264 845 263 856 248 868 226 878 199 877 181 868Z"/>
+          <clipPath id="map-port-a"><use href="#map-port-a-shape"/></clipPath>
+          <clipPath id="map-port-b"><use href="#map-port-b-shape"/></clipPath>
+          <clipPath id="map-port-a-sail"><path d="M141 813 152 778 165 784 162 818ZM168 817 174 779 184 792 187 815Z"/></clipPath>
+          <clipPath id="map-port-b-sail"><path d="M194 844 209 814 222 820 217 848ZM224 848 233 813 245 825 249 845Z"/></clipPath>
+          <mask id="map-port-water" maskUnits="userSpaceOnUse" x="105" y="751" width="174" height="138">
+            <use href="#map-port-a-shape" fill="white" stroke="white" stroke-width="9" filter="url(#map-motion-feather)"/>
+            <use href="#map-port-b-shape" fill="white" stroke="white" stroke-width="9" filter="url(#map-motion-feather)"/>
+          </mask>
+          <path id="map-gull-near-shape" d="M1366 373Q1384 369 1394 373Q1401 376 1407 389L1411 391Q1422 383 1432 389L1434 392 1425 399Q1444 409 1431 445Q1427 430 1421 421Q1415 416 1407 409L1401 406 1383 415Q1383 407 1394 399Q1389 384 1366 378Z"/>
+          <path id="map-gull-far-shape" d="M1437 379Q1446 371 1454 375L1456 370Q1455 362 1463 354Q1474 346 1489 341Q1480 353 1476 368L1473 379 1486 384 1484 395Q1479 404 1468 398L1458 391 1451 391 1445 382 1437 384Z"/>
+          <mask id="map-gull-water" maskUnits="userSpaceOnUse" x="1356" y="329" width="145" height="128">
+            <use href="#map-gull-near-shape" fill="white" stroke="white" stroke-width="12" filter="url(#map-motion-feather)"/>
+            <use href="#map-gull-far-shape" fill="white" stroke="white" stroke-width="12" filter="url(#map-motion-feather)"/>
+          </mask>
+          <clipPath id="map-gull-wing-west"><path d="M1367 373Q1382 370 1396 374Q1403 377 1407 387L1413 395 1407 404Q1396 403 1392 392Q1386 381 1367 376Z"/></clipPath>
+          <clipPath id="map-gull-wing-east"><path d="M1403 396 1420 399Q1438 401 1438 415Q1438 428 1431 445Q1427 430 1420 421Q1411 416 1406 410L1401 403Z"/></clipPath>
+          <clipPath id="map-gull-near-body"><path d="M1382 415Q1382 409 1390 402L1399 396 1407 393 1412 392Q1423 383 1434 390L1427 396 1421 399 1422 405 1417 409 1409 406 1402 405 1394 411Z"/></clipPath>
+          <clipPath id="map-gull-wing-far"><path d="M1456 378Q1453 368 1460 358Q1470 348 1489 342Q1484 349 1479 361L1474 376 1468 382Z"/></clipPath>
+          <clipPath id="map-gull-far-body"><path d="M1437 380Q1443 373 1448 373L1456 377 1462 375 1469 376Q1474 383 1486 384L1485 391 1479 401 1470 398 1462 392 1453 391 1448 385 1444 382 1437 383Z"/></clipPath>
+          <clipPath id="map-forest-harbor"><path d="M363 743Q402 720 444 746L465 790 434 832 383 863 350 836 365 804 355 778Z"/></clipPath>
+          <clipPath id="map-forest-coast"><path d="M291 600Q320 587 352 621L395 634 423 674 474 682 489 725 456 744 415 735 379 705 342 666 314 662 291 640Z"/></clipPath>
+          <clipPath id="map-forest-farmland"><path d="M486 682Q526 680 564 696L601 657 624 653 651 624 689 641 705 675 686 708 653 728 609 749 584 777 531 771 494 746Z"/></clipPath>
+          <clipPath id="map-forest-village"><path d="M353 534L390 536 417 552 437 550 451 579 417 599 378 597 346 579ZM545 505L577 507 592 532 616 523 632 548 654 538 677 544 695 571 683 597 657 591 635 575 617 568 596 553 567 552Z"/></clipPath>
+          <clipPath id="map-forest-west"><path d="M467 429L485 412 497 388 527 374 550 345 578 339 606 354 625 376 662 375 655 421 631 455 600 463 572 489 532 496 502 478 474 468Z"/></clipPath>
+          <clipPath id="map-forest-cliffs"><path d="M721 635L759 616 785 579 817 574 851 539 895 526 933 537 954 566 940 594 899 624 856 650 830 675 787 704 755 721 744 693 750 664Z"/></clipPath>
+          <clipPath id="map-forest-ridge"><path d="M766 265L790 240 808 240 806 208 833 193 864 212 892 212 910 224 942 221 961 240 976 226 1001 226 1024 246 1050 242 1080 259 1081 298 1056 319 1031 313 995 326 949 317 924 320 887 305 854 310 834 298 801 305 775 288Z"/></clipPath>
+          <clipPath id="map-forest-east"><path d="M1019 337L1043 309 1074 304 1092 282 1116 294 1127 322 1100 340 1098 366 1130 365 1171 346 1207 363 1191 390 1156 406 1127 432 1098 455 1067 465 1032 454 1015 425 1024 390 1002 368Z"/></clipPath>
+          <clipPath id="map-forest-castle"><path d="M1113 157L1141 118 1168 111 1189 124 1186 159 1211 176 1209 201 1241 210 1257 203 1278 214 1272 237 1244 251 1229 269 1211 257 1218 225 1187 219 1152 189 1125 184ZM1281 141L1308 117 1341 133 1365 154 1354 187 1329 200 1298 185 1277 169Z"/></clipPath>
+          <clipPath id="map-forest-plateau"><path d="M676 222L694 215 710 228 728 218 747 217 756 232 773 227 797 236 781 259 772 270 773 285 754 281 730 267 703 262 684 251Z"/></clipPath>
+          <clipPath id="map-forest-foothills"><path d="M668 436L693 417 712 419 728 443 725 461 748 479 743 496 723 493 702 480 680 478 652 492 633 477 652 454Z"/></clipPath>
+          <clipPath id="map-forest-south"><path d="M507 734L523 723 551 730 575 744 584 763 570 790 547 803 516 808 494 786 478 765 489 747Z"/></clipPath>
+          <radialGradient id="map-smoke-color">
+            <stop offset="0" stop-color="#fff6e7"/>
+            <stop offset=".54" stop-color="#f0e6d8" stop-opacity=".93"/>
+            <stop offset="1" stop-color="#d3c9bb" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="map-halo-color">
+            <stop offset="0" stop-color="#ffe6a2" stop-opacity=".74"/>
+            <stop offset=".56" stop-color="#f8c967" stop-opacity=".29"/>
+            <stop offset="1" stop-color="#f8c967" stop-opacity="0"/>
+          </radialGradient>
+          <g id="map-walker">
+            <ellipse cy="13" rx="4.5" ry="1.75" fill="#594930" opacity=".4"/>
+            <path class="map-villager-limb map-villager-limb-back" d="M-.4 8L.6 11 2.5 13" fill="none" stroke="#69452e" stroke-width="1.8" stroke-linecap="round"/>
+            <path class="map-villager-limb" d="M.4 8L-.5 11-2.4 13" fill="none" stroke="#493423" stroke-width="1.9" stroke-linecap="round"/>
+            <g class="map-villager-torso">
+              <path d="M-2 2-4 5-3.3 7M2 2 3.8 4.5 3.1 6.8" fill="none" stroke="#855634" stroke-width="1.45" stroke-linecap="round"/>
+              <path d="M-2.2 1H2.3L3.3 8H-3.2Z" fill="currentColor" stroke="#563d2a" stroke-width=".85"/>
+              <path d="M-2.6 6.2H2.8" stroke="#f0b76a" stroke-width=".9"/>
+              <circle cy="-1.5" r="2.3" fill="#f3be82" stroke="#68462d" stroke-width=".75"/>
+              <path d="M-4-2.4 0-5.8 3.8-2.4Z" fill="#e8b861" stroke="#664428" stroke-width=".72"/>
+            </g>
+          </g>
+          <clipPath id="map-dolphin-above-water">
+            <rect x="-148" y="-124" width="184" height="124"/>
+          </clipPath>
+          <g id="map-splash-rings" fill="none" transform="rotate(-9)">
+            <ellipse rx="13" ry="3.6" stroke="#c2f5fb" stroke-width="1.25"/>
+            <path d="M-12 1.45Q-9.3 3.7-3.1 3.7M3.9-3.3Q8.9-2.85 11-1.55" stroke="#fff" stroke-linecap="round" stroke-width="1.45"/>
+          </g>
+          <ellipse id="map-splash-echo-ring" rx="15.2" ry="4.35" fill="none" stroke="#b5edfc" stroke-width="1.1" stroke-dasharray="24 7 15 7" transform="rotate(-9)"/>
+          <g id="map-splash-specks" fill="#eaffff">
+            <path d="M0 .55Q-4.4-5-7.1-4.4Q-5.4-1.7 0 .55ZM0 .55Q.9-7.6 3.1-7.8Q3.9-4.2 0 .55ZM.6 .55Q5.4-5.3 8.3-4.1Q7.5-1.6.6 .55Z"/>
+            <ellipse cx="-10.2" cy="-4.6" rx="1.05" ry="1.65" transform="rotate(-33 -10.2 -4.6)"/>
+            <ellipse cx="10.2" cy="-5" rx="1" ry="1.7" transform="rotate(36 10.2 -5)"/>
+          </g>
+          <path id="map-shore-trace-cape" d="M364 495Q345 521 334 537L317 550M308 554Q286 584 275 603T252 642Q234 665 241 684"/>
+          <path id="map-shore-trace-port" d="M105 842Q127 854 156 850M158 876Q179 891 218 890T262 867"/>
+          <path id="map-shore-trace-south" d="M312 877Q296 897 327 915T386 909Q450 882 480 866M532 851Q571 831 613 839T680 814"/>
+          <path id="map-shore-trace-east" d="M992 612Q1048 584 1058 552T1125 510Q1150 481 1163 459M1201 415Q1237 384 1269 377T1294 343"/>
+          <path id="map-shore-trace-north" d="M1337 268Q1388 237 1391 207M1417 171Q1413 149 1399 139T1368 124"/>
+          <path id="map-open-swell-west" d="M332 314C231 341 135 368 130 400S258 446 261 478Q268 499 235 514"/>
+          <path id="map-open-swell-east" d="M1393 581C1314 590 1193 611 1203 650S1334 722 1336 761Q1339 790 1304 810"/>
+          <path id="map-open-swell-north" d="M320 130C389 144 462 170 476 199S476 230 454 247"/>
+        </defs>
+
+        <!-- 背景取用附近的水面，讓剪出的船與海鳥能離開原位置。 -->
+        <g mask="url(#map-water-over-north)"><use href="#map-motion-art" x="-234" y="1"/></g>
+        <g mask="url(#map-water-over-south)"><use href="#map-motion-art" x="-98" y="175"/></g>
+        <g mask="url(#map-port-water)"><use href="#map-motion-art" y="108"/></g>
+        <g mask="url(#map-gull-water)"><use href="#map-motion-art" y="-142"/></g>
+        <g mask="url(#map-water-over-dolphins)"><use href="#map-motion-art" x="-70" y="165"/></g>
+
+        <g class="map-shore-surge" style="--shore-x:10px;--shore-y:-7px;--wave-delay:-1s;--wave-period:5.9s">
+          <use href="#map-shore-trace-cape" class="map-shore-wash"/>
+          <use href="#map-shore-trace-cape" class="map-shore-line"/>
+          <use href="#map-shore-trace-cape" class="map-shore-echo" x="-5" y="3.5"/>
+        </g>
+        <g class="map-shore-surge" style="--shore-x:6px;--shore-y:-7px;--wave-delay:-3.6s;--wave-period:5.1s">
+          <use href="#map-shore-trace-port" class="map-shore-wash"/>
+          <use href="#map-shore-trace-port" class="map-shore-line"/>
+          <use href="#map-shore-trace-port" class="map-shore-echo" x="-3" y="3.5"/>
+        </g>
+        <g class="map-shore-surge" style="--shore-x:3px;--shore-y:-10px;--wave-delay:-2.2s;--wave-period:6.3s">
+          <use href="#map-shore-trace-south" class="map-shore-wash"/>
+          <use href="#map-shore-trace-south" class="map-shore-line"/>
+          <use href="#map-shore-trace-south" class="map-shore-echo" x="-1.5" y="5"/>
+        </g>
+        <g class="map-shore-surge" style="--shore-x:-10px;--shore-y:-5px;--wave-delay:-4.3s;--wave-period:5.7s">
+          <use href="#map-shore-trace-east" class="map-shore-wash"/>
+          <use href="#map-shore-trace-east" class="map-shore-line"/>
+          <use href="#map-shore-trace-east" class="map-shore-echo" x="5" y="2.5"/>
+        </g>
+        <g class="map-shore-surge" style="--shore-x:-8px;--shore-y:2px;--wave-delay:-0.6s;--wave-period:6.7s">
+          <use href="#map-shore-trace-north" class="map-shore-wash"/>
+          <use href="#map-shore-trace-north" class="map-shore-line"/>
+          <use href="#map-shore-trace-north" class="map-shore-echo" x="4" y="-1"/>
+        </g>
+        <path class="map-shore-spray" style="--wave-delay:-2.2s;--wave-period:6.3s" d="M332 913Q329 903 325 907T332 913ZM344 913Q348 903 351 905T344 913ZM356 912Q363 906 364 909T356 912Z"/>
+        <path class="map-shore-spray" style="--wave-delay:-4.3s;--wave-period:5.7s" d="M1069 544Q1068 534 1064 537T1069 544ZM1076 541Q1081 534 1083 536T1076 541ZM1087 537Q1091 529 1093 531T1087 537Z"/>
+        <path class="map-shore-spray" style="--wave-delay:-3.6s;--wave-period:5.1s" d="M183 881Q179 872 176 876T183 881ZM195 881Q198 873 201 875T195 881ZM209 881Q214 875 216 877T209 881Z"/>
+        <g class="map-wave-crest" style="--wave-delay:-1.4s">
+          <use href="#map-open-swell-west" class="map-wave-crest-line"/>
+          <use href="#map-open-swell-west" class="map-wave-crest-trail" x="6" y="7"/>
+        </g>
+        <g class="map-wave-crest" style="--wave-delay:-4.5s">
+          <use href="#map-open-swell-east" class="map-wave-crest-line"/>
+          <use href="#map-open-swell-east" class="map-wave-crest-trail" x="6" y="7"/>
+        </g>
+        <g class="map-wave-crest" style="--wave-delay:-3.1s">
+          <use href="#map-open-swell-north" class="map-wave-crest-line"/>
+          <use href="#map-open-swell-north" class="map-wave-crest-trail" x="6" y="7"/>
+        </g>
+        <path class="map-wake" d="M109 268Q204 228 303 266Q258 313 157 295Q126 288 109 268Z" stroke-width="3.2" style="--wake-delay:-1.4s"/>
+        <path class="map-wake" d="M112 271Q209 242 297 271Q246 300 166 290Q134 285 112 271Z" stroke-width="1.9" style="--wake-delay:-3.3s"/>
+        <path class="map-wake" d="M1185 900Q1251 865 1331 894Q1309 923 1259 928Q1210 926 1185 900Z" stroke-width="3.1" style="--wake-delay:-2.2s"/>
+        <path class="map-wake" d="M1191 902Q1251 876 1322 896Q1298 922 1251 922Q1211 918 1191 902Z" stroke-width="1.7" style="--wake-delay:-0.55s"/>
+        <path class="map-wake" d="M107 835Q136 823 199 830Q193 849 154 850Q125 847 107 835Z" stroke-width="2.2" style="--wake-delay:-1.9s"/>
+        <path class="map-wake" d="M158 872Q204 851 262 860Q248 886 214 891Q180 889 158 872Z" stroke-width="2.4" style="--wake-delay:-3.65s"/>
+        <g class="map-ship map-ship-north" style="transform-origin:211px 269px;--ship-delay:-1.2s;--ship-period:6.4s">
+          <use href="#map-motion-art" clip-path="url(#map-ship-north)"/>
+          <g class="map-sail" style="transform-origin:224px 243px">
+            <use href="#map-motion-art" clip-path="url(#map-sail-north)"/>
+            <path class="map-sail-light" d="M183 234Q191 223 194 195Q197 218 189 235ZM223 240Q230 217 230 186Q238 203 231 239Z" clip-path="url(#map-sail-north)"/>
+          </g>
+        </g>
+        <g class="map-ship map-ship-south" style="transform-origin:1260px 900px;--ship-delay:-3.8s;--ship-period:7.6s">
+          <use href="#map-motion-art" clip-path="url(#map-ship-south)"/>
+          <g class="map-sail" style="transform-origin:1261px 875px">
+            <use href="#map-motion-art" clip-path="url(#map-sail-south)"/>
+            <path class="map-sail-light" d="M1234 871Q1244 854 1246 826Q1251 846 1242 871ZM1276 872Q1281 850 1277 834Q1286 849 1283 871Z" clip-path="url(#map-sail-south)"/>
+          </g>
+        </g>
+        <g class="map-ship map-ship-port map-ship-port-a" style="transform-origin:177px 824px;--ship-delay:-2.4s;--ship-period:7.1s">
+          <use href="#map-motion-art" clip-path="url(#map-port-a)"/>
+          <g class="map-sail" style="transform-origin:156px 814px">
+            <use href="#map-motion-art" clip-path="url(#map-port-a-sail)"/>
+            <path class="map-sail-light" d="M147 808Q153 795 155 783Q159 799 153 809ZM173 811Q179 795 176 785Q184 802 179 812Z" clip-path="url(#map-port-a-sail)"/>
+          </g>
+        </g>
+        <g class="map-ship map-ship-port map-ship-port-b" style="transform-origin:244px 856px;--ship-delay:-4.7s;--ship-period:8.2s">
+          <use href="#map-motion-art" clip-path="url(#map-port-b)"/>
+          <g class="map-sail" style="transform-origin:219px 843px">
+            <use href="#map-motion-art" clip-path="url(#map-port-b-sail)"/>
+            <path class="map-sail-light" d="M202 840Q211 830 211 818Q215 830 210 841ZM229 841Q237 826 235 820Q242 831 234 841Z" clip-path="url(#map-port-b-sail)"/>
+          </g>
+        </g>
+
+        <g clip-path="url(#map-forest-harbor)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:407px 820px;--wind-delay:-1.1s;--wind-period:8.3s;--bend:-3.5deg"/>
+        </g>
+        <g clip-path="url(#map-forest-coast)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:383px 700px;--wind-delay:-4.5s;--wind-period:9.2s;--bend:3.1deg"/>
+        </g>
+        <g clip-path="url(#map-forest-farmland)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:582px 747px;--wind-delay:-2.5s;--wind-period:8.6s;--bend:-3.9deg"/>
+        </g>
+        <g clip-path="url(#map-forest-village)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:553px 583px;--wind-delay:-6.2s;--wind-period:7.6s;--bend:4.1deg"/>
+        </g>
+        <g clip-path="url(#map-forest-west)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:556px 469px;--wind-delay:-5.3s;--wind-period:10.1s;--bend:-3.4deg"/>
+        </g>
+        <g clip-path="url(#map-forest-cliffs)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:840px 667px;--wind-delay:-0.6s;--wind-period:8.9s;--bend:2.9deg"/>
+        </g>
+        <g clip-path="url(#map-forest-ridge)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:924px 304px;--wind-delay:-3s;--wind-period:8.2s;--bend:-3.1deg"/>
+        </g>
+        <g clip-path="url(#map-forest-east)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:1100px 429px;--wind-delay:-6.9s;--wind-period:10.5s;--bend:3.4deg"/>
+        </g>
+        <g clip-path="url(#map-forest-castle)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:1227px 209px;--wind-delay:-5.7s;--wind-period:8.7s;--bend:-3.1deg"/>
+        </g>
+        <g clip-path="url(#map-forest-plateau)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:743px 267px;--wind-delay:-1.9s;--wind-period:8.1s;--bend:4.2deg"/>
+        </g>
+        <g clip-path="url(#map-forest-foothills)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:699px 478px;--wind-delay:-7.4s;--wind-period:9.4s;--bend:-3.7deg"/>
+        </g>
+        <g clip-path="url(#map-forest-south)">
+          <use href="#map-motion-art" class="map-forest" style="transform-origin:540px 786px;--wind-delay:-3.3s;--wind-period:7.8s;--bend:3.8deg"/>
+        </g>
+        <g clip-path="url(#map-palm-shore)">
+          <use href="#map-motion-art" class="map-palm" style="transform-origin:418px 494px;--wind-period:7.8s;--wind-delay:-2s"/>
+        </g>
+        <g clip-path="url(#map-palm-fields)">
+          <use href="#map-motion-art" class="map-palm" style="transform-origin:610px 680px;--wind-period:8.3s;--wind-delay:-4.1s"/>
+        </g>
+        <g clip-path="url(#map-palm-hill)">
+          <use href="#map-motion-art" class="map-palm" style="transform-origin:1261px 253px;--wind-period:9.2s;--wind-delay:-6.2s"/>
+        </g>
+        <path class="map-wind-leaf" fill="#89a441" stroke="#4d692d" stroke-width=".85" style="--wind-delay:-1.7s" d="M1066 186Q1069 175 1082 175Q1080 185 1066 186Z"/>
+        <path class="map-wind-leaf" fill="#cfac50" stroke="#816027" stroke-width=".75" style="--wind-delay:-5.4s" d="M597 521Q602 512 610 514Q606 522 597 521Z"/>
+        <path class="map-wind-leaf" fill="#71953a" stroke="#4d692d" stroke-width=".8" style="--wind-delay:-3.3s" d="M1158 225Q1162 214 1174 216Q1170 225 1158 225Z"/>
+
+        <g class="map-gull-wing" style="transform-origin:1405px 398px;--wing-fold:-18deg;--wing-stretch:10deg;--wing-period:4.8s;--wing-delay:-0.32s">
+          <use href="#map-motion-art" clip-path="url(#map-gull-wing-west)"/>
+        </g>
+        <g class="map-gull-wing" style="transform-origin:1416px 403px;--wing-fold:15deg;--wing-stretch:-10deg;--wing-period:4.8s;--wing-delay:-0.43s">
+          <use href="#map-motion-art" clip-path="url(#map-gull-wing-east)"/>
+        </g>
+        <g class="map-gull-wing" style="transform-origin:1464px 378px;--wing-fold:-13deg;--wing-stretch:10deg;--wing-period:5.3s;--wing-delay:-2.05s">
+          <use href="#map-motion-art" clip-path="url(#map-gull-wing-far)"/>
+        </g>
+        <use href="#map-motion-art" clip-path="url(#map-gull-near-body)"/>
+        <use href="#map-motion-art" clip-path="url(#map-gull-far-body)"/>
+
+        <g class="map-dolphin-pod">
+${mapDolphinPod}
+        </g>
+        <g class="map-dolphin-pod" transform="translate(828 216)">
+${mapDolphinPod}
+        </g>
+
+        <path class="map-waterfall-ribbon" stroke-width="9" d="M965 400C974 411 975 433 981 449L985 460M961 511Q976 515 980 532L990 557M719 653Q727 660 727 671L722 684Q724 701 713 714"/>
+        <path class="map-waterfall-flow" stroke-width="3.3" d="M966 402C976 414 976 436 982 450L986 463M967 513Q978 520 983 536L990 557M719 654Q728 666 726 673L723 687Q724 703 713 714"/>
+        <path class="map-waterfall-thread" stroke-width="2.05" d="M966 405Q970 422 974 439L980 458M969 518Q976 525 978 538L986 558M721 659Q723 671 720 678L718 691Q718 703 710 713"/>
+        <g class="map-waterfall-mist" fill="#ddfbff" style="--mist-delay:-.85s">
+          <ellipse cx="989" cy="464" rx="8" ry="2.5"/><ellipse cx="982" cy="459" rx="3.2" ry="2"/><ellipse cx="996" cy="462" rx="4" ry="2.1"/>
+        </g>
+        <g class="map-waterfall-mist" fill="#dffaff" style="--mist-delay:-1.6s">
+          <ellipse cx="995" cy="560" rx="9" ry="2.9"/><ellipse cx="989" cy="556" rx="4.5" ry="2.1"/><ellipse cx="1001" cy="558" rx="4" ry="2"/>
+        </g>
+        <g class="map-waterfall-mist" fill="#ddfbff" style="--mist-delay:-.3s">
+          <ellipse cx="711" cy="715" rx="9" ry="2.9"/><ellipse cx="719" cy="712" rx="5.3" ry="2.3"/><ellipse cx="707" cy="712" rx="4" ry="1.7"/>
+        </g>
+
+        <ellipse class="map-chimney-smoke" cx="457" cy="564" rx="6.4" ry="5.4" style="--smoke-delay:-1.15s"/>
+        <ellipse class="map-chimney-smoke" cx="458" cy="564" rx="7.0" ry="5.8" style="--smoke-delay:-1.70s"/>
+        <ellipse class="map-chimney-smoke" cx="457" cy="564" rx="7.6" ry="6.2" style="--smoke-delay:-2.25s"/>
+        <ellipse class="map-chimney-smoke" cx="510" cy="535" rx="6.4" ry="5.4" style="--smoke-delay:-3.63s"/>
+        <ellipse class="map-chimney-smoke" cx="511" cy="535" rx="7.0" ry="5.8" style="--smoke-delay:-4.18s"/>
+        <ellipse class="map-chimney-smoke" cx="510" cy="535" rx="7.6" ry="6.2" style="--smoke-delay:-4.73s"/>
+        <ellipse class="map-chimney-smoke" cx="592" cy="558" rx="6.4" ry="5.4" style="--smoke-delay:-6.06s"/>
+        <ellipse class="map-chimney-smoke" cx="593" cy="558" rx="7.0" ry="5.8" style="--smoke-delay:-6.61s"/>
+        <ellipse class="map-chimney-smoke" cx="592" cy="558" rx="7.6" ry="6.2" style="--smoke-delay:-7.16s"/>
+        <ellipse class="map-chimney-smoke" cx="265" cy="734" rx="6.4" ry="5.4" style="--smoke-delay:-4.90s"/>
+        <ellipse class="map-chimney-smoke" cx="266" cy="734" rx="7.0" ry="5.8" style="--smoke-delay:-5.45s"/>
+        <ellipse class="map-chimney-smoke" cx="265" cy="734" rx="7.6" ry="6.2" style="--smoke-delay:-6.00s"/>
+        <g class="map-villager map-villager-a" style="color:#ab4227;--walk-period:10.6s;--walk-delay:-1.3s"><use href="#map-walker"/></g>
+        <g class="map-villager map-villager-b" style="color:#28765f;--walk-period:12s;--walk-delay:-5.3s"><use href="#map-walker"/></g>
+        <g class="map-villager map-villager-port" style="color:#b28035;--walk-period:13.1s;--walk-delay:-8.7s"><use href="#map-walker"/></g>
+
+        <ellipse class="map-castle-aura" cx="1229" cy="121" rx="75" ry="42" fill="url(#map-halo-color)"/>
+        <ellipse class="map-castle-halo" cx="1229" cy="121" rx="73" ry="33" stroke="#ffe8a2" stroke-width="3.1" stroke-dasharray="57 19 5 18"/>
+        <ellipse class="map-castle-halo map-castle-halo-inner" cx="1229" cy="121" rx="61" ry="25" stroke="#fff3c2" stroke-width="1.7" stroke-dasharray="27 12 3 14"/>
+        <path class="map-castle-spark" style="--spark-delay:-2.1s" d="M1182 102 1184 108 1190 110 1184 112 1182 118 1180 112 1174 110 1180 108Z"/>
+        <path class="map-castle-spark" style="--spark-delay:-4.6s" d="M1274 92 1276 97 1281 99 1276 101 1274 106 1272 101 1267 99 1272 97Z"/>
+        <path class="map-castle-spark" style="--spark-delay:-6.4s" d="M1290 127 1292 132 1297 134 1292 136 1290 141 1288 136 1283 134 1288 132Z"/>
+  </svg>
+  <span class="map-sea-glint map-sea-glint-west"></span>
+  <span class="map-sea-glint map-sea-glint-east"></span>
+</div>`;
 /* unlock：剛首次完成的關卡編號。地圖節點先畫成完成前的樣子，再由 playUnlock 演出蓋章與解鎖 */
-function showMap(unlock=0){if(isCustomLevel()){if(state.storyHearts){state.hp=state.storyHearts.hp;state.hpMax=state.storyHearts.hpMax}state.level=1;state.customRun=null;state.storyHearts=null}state.teacherMode=false;state.classroomUnitKey=null;const classroom=hasClassAssignment(),opened=classOpenLevels(),assigned=opened.find(n=>!state.done.has(n)),storyNext=levels.findIndex((_,i)=>isLevelOpen(i+1)&&!state.done.has(i+1)),nextLevel=classroom?(assigned||opened[0]||0):(storyNext<0?Math.min(state.unlocked,levels.length):storyNext+1),nextDone=nextLevel&&state.done.has(nextLevel),classNotice=classroom?(opened.length?`<p class="class-open-note"><b>老師指定的作答關卡</b>${opened.map(n=>`第 ${n} 關「${esc(levels[n-1].title)}」`).join("、")}。只有這些關卡${customIsOpen()?"與帆船上的未知地點":""}可以進入。</p>`:`<p class="class-open-note"><b>${customIsOpen()?"老師已開放未知地點":"老師目前尚未開放作答關卡"}</b>${customIsOpen()?"請點選右下角帆船，挑戰老師自訂的題目。":"請等待老師指定關卡後，再重新整理或回到地圖。"}</p>`):"";render(`<section class="screen"><div class="map-head"><div class="map-head-copy"><div class="eyebrow">文物守護局・行動地圖</div><h2>沿著守護路線，找回八件文物</h2><p>八個關卡依照五上、五下各四個單元順序前進。每站先調查兩條線索，再用證據找回文物。</p>${classNotice}</div><div class="map-utilities"><div class="map-next"><div><span class="map-next-label">${nextLevel?(nextDone?"已完成・可再次作答":"老師指定・目前任務"):customIsOpen()?"老師指定・隱藏任務":"等待老師指定"}</span><strong>${nextLevel?`第 ${nextLevel} 關・${esc(levels[nextLevel-1].title)}`:customIsOpen()?"未知地點・老師自訂題庫":"目前沒有開放關卡"}</strong></div><button class="primary" id="mapStart" ${nextLevel?"":"disabled"}>${nextLevel?(nextDone?"重玩本關":"前往本關"):"等待老師開放"}</button></div></div></div><div class="map-meta"><span class="tag">已修復 ${state.done.size} / ${levels.length}</span><div class="map-legend" aria-label="地圖圖例"><span class="map-key"><i class="now" aria-hidden="true"></i>下一站</span><span class="map-key"><i class="finished" aria-hidden="true"></i>已修復</span><span class="map-key"><i class="closed" aria-hidden="true"></i>尚未開放</span><span class="tag">手機可左右滑動地圖</span></div></div><div class="map-scroll" role="region" tabindex="0" aria-label="可左右捲動的八關地圖，使用 Tab 選擇已開放關卡"><div class="adventure-map">${levels.map((l,i)=>{const n=i+1,teacherOpened=classroom&&opened.includes(n),locked=!isLevelOpen(n)||(!classroom&&unlock&&n===unlock+1),done=state.done.has(n)&&n!==unlock,now=!!nextLevel&&n===(unlock||nextLevel),d=difficulties[i],status=locked?"尚未開放":done?"已修復":now?"下一站":teacherOpened?"老師開放":"已開放";return `<button class="map-level pos-${n} ${locked?"locked":done?"done":now?"current":"available"}" data-level="${n}" ${locked?"disabled":""} aria-label="第 ${n} 關，${esc(l.title)}，${status}" title="${esc(l.unit)}｜難度：${d.name}"><span class="map-number">${n}</span><span class="marker" aria-hidden="true">${locked?"🔒":l.icon}</span><span class="map-label">${esc(l.title)}<small>${status}</small></span></button>`}).join("")}${customIsOpen()?`<button class="map-level custom-sail available" data-custom-level type="button" aria-label="未知地點，老師自訂題庫，${customBank().count} 題"><span class="marker" aria-hidden="true">？</span><span class="map-label">未知地點<small>${customBank().count} 題・隱藏關卡</small></span></button>`:""}</div></div><div class="row map-footer" style="margin-top:20px"><div class="map-actions"><button class="primary" id="duel">雙人對決</button><button class="secondary" id="teacher">教師課堂模式</button><button class="secondary" id="story">重看前置劇情</button><button class="secondary" id="rules">玩法說明</button></div><div class="row">${cloud.enabled?`<button class="secondary" id="joinClass">${cloud.classLabel()?`班級：${esc(cloud.classLabel())}`:"加入班級"}</button>`:""}<button class="secondary" id="reset">清除進度</button></div></div></section>`);const mapStart=document.querySelector("#mapStart");if(nextLevel)mapStart.onclick=()=>prepare(nextLevel);else if(customIsOpen()){mapStart.disabled=false;mapStart.textContent="前往未知地點";mapStart.onclick=()=>prepare(9)}document.querySelectorAll(".map-level[data-level]").forEach(b=>b.onclick=()=>prepare(+b.dataset.level));const customNode=document.querySelector("[data-custom-level]");if(customNode)customNode.onclick=()=>prepare(9);document.querySelector("#teacher").onclick=showTeacherMode;document.querySelector("#story").onclick=()=>showPrologue(0);document.querySelector("#rules").onclick=showHowToPlay;const joinMap=document.querySelector("#joinClass");if(joinMap)joinMap.onclick=()=>cloud.showJoin(()=>showMap());document.querySelector("#reset").onclick=()=>{if(confirm("確定要清除八關進度，從第一關重新開始嗎？")){localStorage.removeItem(STORAGE_KEY);location.reload()}};const duelBtn=document.querySelector("#duel");if(duelBtn)duelBtn.onclick=showDuelSetup;if(unlock&&!classroom)playUnlock(unlock)}
+function showMap(unlock=0){if(isCustomLevel()){if(state.storyHearts){state.hp=state.storyHearts.hp;state.hpMax=state.storyHearts.hpMax}state.level=1;state.customRun=null;state.storyHearts=null}state.teacherMode=false;state.classroomUnitKey=null;const classroom=hasClassAssignment(),opened=classOpenLevels(),assigned=opened.find(n=>!state.done.has(n)),storyNext=levels.findIndex((_,i)=>isLevelOpen(i+1)&&!state.done.has(i+1)),nextLevel=classroom?(assigned||opened[0]||0):(storyNext<0?Math.min(state.unlocked,levels.length):storyNext+1),nextDone=nextLevel&&state.done.has(nextLevel),classNotice=classroom?(opened.length?`<p class="class-open-note"><b>老師指定的作答關卡</b>${opened.map(n=>`第 ${n} 關「${esc(levels[n-1].title)}」`).join("、")}。只有這些關卡${customIsOpen()?"與帆船上的未知地點":""}可以進入。</p>`:`<p class="class-open-note"><b>${customIsOpen()?"老師已開放未知地點":"老師目前尚未開放作答關卡"}</b>${customIsOpen()?"請點選右下角帆船，挑戰老師自訂的題目。":"請等待老師指定關卡後，再重新整理或回到地圖。"}</p>`):"";render(`<section class="screen"><div class="map-head"><div class="map-head-copy"><div class="eyebrow">文物守護局・行動地圖</div><h2>沿著守護路線，找回八件文物</h2><p>八個關卡依照五上、五下各四個單元順序前進。每站先調查兩條線索，再用證據找回文物。</p>${classNotice}</div><div class="map-utilities"><div class="map-next"><div><span class="map-next-label">${nextLevel?(nextDone?"已完成・可再次作答":"老師指定・目前任務"):customIsOpen()?"老師指定・隱藏任務":"等待老師指定"}</span><strong>${nextLevel?`第 ${nextLevel} 關・${esc(levels[nextLevel-1].title)}`:customIsOpen()?"未知地點・老師自訂題庫":"目前沒有開放關卡"}</strong></div><button class="primary" id="mapStart" ${nextLevel?"":"disabled"}>${nextLevel?(nextDone?"重玩本關":"前往本關"):"等待老師開放"}</button></div></div></div><div class="map-meta"><span class="tag">已修復 ${state.done.size} / ${levels.length}</span><div class="map-legend" aria-label="地圖圖例"><span class="map-key"><i class="now" aria-hidden="true"></i>下一站</span><span class="map-key"><i class="finished" aria-hidden="true"></i>已修復</span><span class="map-key"><i class="closed" aria-hidden="true"></i>尚未開放</span><span class="tag">手機可左右滑動地圖</span></div></div><div class="map-scroll" role="region" tabindex="0" aria-label="可左右捲動的八關地圖，使用 Tab 選擇已開放關卡"><div class="adventure-map">${levels.map((l,i)=>{const n=i+1,teacherOpened=classroom&&opened.includes(n),locked=!isLevelOpen(n)||(!classroom&&unlock&&n===unlock+1),done=state.done.has(n)&&n!==unlock,now=!!nextLevel&&n===(unlock||nextLevel),d=difficulties[i],status=locked?"尚未開放":done?"已修復":now?"下一站":teacherOpened?"老師開放":"已開放";return `<button class="map-level pos-${n} ${locked?"locked":done?"done":now?"current":"available"}" data-level="${n}" ${locked?"disabled":""} aria-label="第 ${n} 關，${esc(l.title)}，${status}" title="${esc(l.unit)}｜難度：${d.name}"><span class="map-number">${n}</span><span class="marker" aria-hidden="true">${locked?"🔒":l.icon}</span><span class="map-label">${esc(l.title)}<small>${status}</small></span></button>`}).join("")}${customIsOpen()?`<button class="map-level custom-sail available" data-custom-level type="button" aria-label="未知地點，老師自訂題庫，${customBank().count} 題"><span class="marker" aria-hidden="true">？</span><span class="map-label">未知地點<small>${customBank().count} 題・隱藏關卡</small></span></button>`:""}${mapSeaMotion}</div></div><div class="row map-footer" style="margin-top:20px"><div class="map-actions"><button class="primary" id="duel">雙人對決</button><button class="secondary" id="teacher">教師課堂模式</button><button class="secondary" id="story">重看前置劇情</button><button class="secondary" id="rules">玩法說明</button></div><div class="row">${cloud.enabled?`<button class="secondary" id="joinClass">${cloud.classLabel()?`班級：${esc(cloud.classLabel())}`:"加入班級"}</button>`:""}<button class="secondary" id="reset">清除進度</button></div></div></section>`);const mapStart=document.querySelector("#mapStart");if(nextLevel)mapStart.onclick=()=>prepare(nextLevel);else if(customIsOpen()){mapStart.disabled=false;mapStart.textContent="前往未知地點";mapStart.onclick=()=>prepare(9)}document.querySelectorAll(".map-level[data-level]").forEach(b=>b.onclick=()=>prepare(+b.dataset.level));const customNode=document.querySelector("[data-custom-level]");if(customNode)customNode.onclick=()=>prepare(9);document.querySelector("#teacher").onclick=showTeacherMode;document.querySelector("#story").onclick=()=>showPrologue(0);document.querySelector("#rules").onclick=showHowToPlay;const joinMap=document.querySelector("#joinClass");if(joinMap)joinMap.onclick=()=>cloud.showJoin(()=>showMap());document.querySelector("#reset").onclick=()=>{if(confirm("確定要清除八關進度，從第一關重新開始嗎？")){localStorage.removeItem(STORAGE_KEY);location.reload()}};const duelBtn=document.querySelector("#duel");if(duelBtn)duelBtn.onclick=showDuelSetup;if(unlock&&!classroom)playUnlock(unlock)}
 /* 關卡解鎖動畫：剛完成的關卡蓋上「已修復」，光點沿路線飛到最近的未開放關卡，把它變成「下一站」 */
 async function playUnlock(n){const map=document.querySelector(".adventure-map"),node=k=>map.querySelector(`.map-level[data-level="${k}"]`),a=node(n),b=node(n+1);if(!a)return;
  const mark=(el,cls,status)=>{const k=+el.dataset.level;el.className=`map-level pos-${k} ${cls}`;el.querySelector("small").textContent=status;el.setAttribute("aria-label",`第 ${k} 關，${levels[k-1].title}，${status}`)};
